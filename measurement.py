@@ -33,8 +33,8 @@ def measure(freq=None, freqstep=5, t=2):
     ax_all.set_title(f"Response")
     plt.tight_layout()
 
-    rate = 1000  # todo default 1000? It is not.
-    num = rate * t
+    rate = 2000  # default 1000? It is not. Could find it out somehow
+    num = int(rate * t)
     times = np.arange(num) / rate
     line_current, = ax_current.plot(times, np.zeros_like(times))
     line_all, = ax_all.plot([0, 0], [0, 0])
@@ -98,17 +98,17 @@ def measure_pulse(freq=None):
     ax_all, ax_current = axs
     ax_current.set_ylabel("Power")
     ax_current.set_xlabel("time / s")
-    ax_current.set_title(f"Current Frequency: {freq[0]:.6g}")
+    ax_current.set_title(f"Run number: {-1:.6g}")
     ax_all.set_ylabel("Mean(Abs(Amplitude)) / V")
     ax_all.set_xlabel("Frequency / Hz")
     ax_all.set_title(f"Average Response")
     plt.tight_layout()
 
     # setting up data collection variables
-    runs = 10
+    runs = int(10)
     t = 5  # todo response for 5 secs
     rate = 4000  # max is 250,000 samples per second >:D
-    num = rate * t  # number of samples to measure
+    num = int(rate * t)  # number of samples to measure
     times = np.arange(start=0, stop=t, step=(1 / rate))
     line_current, = ax_current.plot(times, np.zeros_like(times))
 
@@ -133,7 +133,8 @@ def measure_pulse(freq=None):
             # todo do 1 pulse then measure, so we don't have to see the pulse, just the remaining resonance.
             ax_current.set_title(f"Run number: {str(i).zfill(len(str(runs)))}")
 
-            sig_gen.write(f'APPLy:PULSe {0.25 + 2 * np.random.random()}, MAX')  # randomise signal duration
+            # sig_gen.write(f'APPLy:PULSe {0.25 + 2 * np.random.random()}, MAX')  # randomise signal duration
+            sig_gen.write(f'APPLy:PULSe {5/3}, MAX')  # randomise signal duration
             signal = task.read(num)  # raw signal
 
             # process and write to file

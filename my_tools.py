@@ -43,6 +43,7 @@ def resave_output():
     except FileNotFoundError:
         print(f"Copying to file name '{sample_name}_{test_num}.txt'")
     np.savetxt(f"outputs/{sample_name}_{test_num}.txt", np.loadtxt(f"outputs/output.txt"), fmt='%.6g')
+    # the below method is (probably) slower than savetxt of loadtxt
     # with open(f"outputs/output.txt", 'r') as out:  # reopen the just saved output file in read mode
     #     with open(f"outputs/{sample_name}_{test_num}.txt", 'w') as new_out:
     #         for line in out:
