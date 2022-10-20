@@ -1,5 +1,6 @@
-from testIO import waveform_generators, picoscope, picoscope_check
-from measurement import measure, measure_pulse
+# from testIO import waveform_generators, picoscope, picoscope_check
+# from measurement import measure, measure_pulse
+from analysis import peak_finder_averages, peak_finder_with_derivatives
 
 # in anaconda prompt (pinned)
 # >conda activate LabDrumskin
@@ -21,7 +22,9 @@ from measurement import measure, measure_pulse
 
 
 def main():
-    picoscope_check()
+    # peak_finder_averages()
+    peak_finder_with_derivatives()
+    # picoscope_check()
     # picoscope()
     # measure(freq=[900, 1500], freqstep=5, t=2)
     # measure_pulse()  # this no works :c
