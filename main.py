@@ -1,5 +1,5 @@
 from testIO import test
-from measurement import measure
+from measurement import measure, measure_pulse
 
 # in anaconda prompt (pinned)
 # conda activate LabDrumskin
@@ -8,7 +8,8 @@ from measurement import measure
 
 def main():
     # test()
-    measure(freq=[900, 920], freqstep=5, t=2)
+    measure(freq=[900, 1500], freqstep=5, t=2)
+    # measure_pulse()  # todo check if this works!
     # print("work")
 
 

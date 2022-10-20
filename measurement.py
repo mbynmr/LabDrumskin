@@ -1,99 +1,161 @@
-import nidaqmx
 import numpy as np
-import pyvisa
-import time
 import matplotlib.pyplot as plt
+from scipy.signal import savgol_filter  # smoothing
+import nidaqmx
+from tqdm import tqdm
+import time
 
-from my_tools import round_sig_figs
+
+from my_tools import ax_lims, resave_output
+from IO_setup import set_up_signal_generator_sine, set_up_signal_generator_pulse
 
 
 def measure(freq=None, freqstep=5, t=2):
-    """Measures a ]piezo.
+    """
+    Measures a film by exciting a series of frequencies using sine waves then measuring the response.
     freq=[minf, maxf] is the minimim and maximum frequencies to sweep between
     freqstep=df is the frequency step between measurements
-    t=t is the length of time a measurement takes"""
-    # Agilent33521A has code USB0::0x0957::0x1607::MY50003212::INSTR
+    t=t is the length of time a measurement takes
+    """
     if freq is None:
         freq = [50, 2000]
 
     sig_gen = set_up_signal_generator_sine()
 
     plt.ion()
-    fig, ax = plt.subplots()
-    plt.ylabel("Amplitude / V")
-    plt.xlabel("time / s")
+    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(16, 8))
+    ax_all, ax_current = axs
+    ax_current.set_ylabel("Amplitude / V")
+    ax_current.set_xlabel("time / s")
+    ax_current.set_title(f"Current Frequency: {freq[0]:.6g}")
+    ax_all.set_ylabel("Mean(Abs(Amplitude)) / V")
+    ax_all.set_xlabel("Frequency / Hz")
+    ax_all.set_title(f"Response")
+    plt.tight_layout()
 
-    x = np.arange(1000)
-    line, = ax.plot(x, np.zeros_like(x))
+    rate = 1000  # todo default 1000? It is not.
+    num = rate * t
+    times = np.arange(num) / rate
+    line_current, = ax_current.plot(times, np.zeros_like(times))
+    line_all, = ax_all.plot([0, 0], [0, 0])
 
     fig.canvas.draw()
     fig.canvas.flush_events()
-    time.sleep(t)
+    # time.sleep(0.5)  # just to chill after you press start for a second
 
     with nidaqmx.Task() as task:
-        with open("outputs/output.txt", 'w') as out:
-            task.ai_channels.add_ai_voltage_chan("Dev1/ai0")
-            for f in np.linspace(freq[0], freq[1], int((1 + freq[1] - freq[0]) / freqstep)):
-                # a335.write(f'{f}')
-
-                signal = task.read(number_of_samples_per_channel=1000)
-                # y = np.real_if_close(np.fft.fft(signal))
-                y = signal
-
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai0")
+        task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
+        with open(f"outputs/output.txt", 'w') as out:
+            num_freqs = 1 + int((freq[1] - freq[0]) / freqstep)
+            data_list = np.zeros(num_freqs)
+            freqs = np.linspace(freq[0], freq[1], num_freqs)
+            for i, f in tqdm(enumerate(freqs)):
                 sig_gen.write(f'APPLy:SINusoid {f}, 10')
+                ax_current.set_title(f"Frequency: {f:.6g}")
 
-                # update figure
-                line.set_ydata(y)
-                ax.set_ylim([round_sig_figs(min(y) * 1.05, 2), round_sig_figs(max(y) * 1.05, 2)])
+                # read the microphone data
+                signal = task.read(num)
+
+                # process and write to file
+                data = np.mean(np.abs(signal))  # todo check if it is mean(abs()) ?
+                data_list[i] = data
+                out.write(f"{f:.6g} {data:.6g}\n")
+
+                # update visual plot of data
+                line_current.set_ydata(signal)
+                ax_current.set_ylim(ax_lims(signal))
+
+                if i > 0:
+                    line_all.set_xdata(freqs[np.nonzero(data_list)])
+                    line_all.set_ydata(data_list[np.nonzero(data_list)])
+                    ax_all.set_ylim((0, ax_lims(data_list[np.nonzero(data_list)])[1]))
+                else:
+                    ax_all.set_xlim([freq[0], freq[1]])
+                    ax_current.set_xlim([0, t])
                 fig.canvas.draw()
                 fig.canvas.flush_events()
+    plt.close(fig)
 
-                out.write(f"{f:.6g} {np.mean(signal):.6g}\n")
-
-                # time.sleep(1)
-
-
-def set_up_signal_generator_pulse():
-    a335_resource = 'USB0::0x0957::0x1607::MY50003212::INSTR'
-    # RSDG 805 has code USB0::0xF4ED::0xEE3A::SDG08CBQ5R1442::INSTR
-    rs805_resource = 'USB0::0xF4ED::0xEE3A::SDG08CBQ5R1442::INSTR'
-
-    rm = pyvisa.ResourceManager()
-
-    a335 = rm.open_resource(a335_resource)
-    # rs805 = rm.open_resource(rs805_resource)
-
-    a335.write('DISP:TEXT "setting up..."')
-
-    a335.write('OUTPut:ON')
-    a335.write('APPLy:PULSe 1.666667, MAX')
-    # 100 micro secs = 0.0001
-    # 1 micro sec = 0.00001
-    # below 100 micro secs the piezo makes less of a sound
-    a335.write('FUNCtion:PULSe:WIDTh 0.0001')
-
-    a335.write('DISP:TEXT "Test running! Be quiet please"')
-
-    return a335
-    # return rs805
+    # file management
+    resave_output()
 
 
-def set_up_signal_generator_sine():
-    a335_resource = 'USB0::0x0957::0x1607::MY50003212::INSTR'
-    # RSDG 805 has code USB0::0xF4ED::0xEE3A::SDG08CBQ5R1442::INSTR
-    rs805_resource = 'USB0::0xF4ED::0xEE3A::SDG08CBQ5R1442::INSTR'
+def measure_pulse(freq=None):
+    """
+    Measures a film by hitting it with a short pulse and measuring the response.
+    freq=[minf, maxf] is the minimim and maximum frequencies to measure
+    """
 
-    rm = pyvisa.ResourceManager()
+    if freq is None:
+        freq = [50, 2000]
 
-    a335 = rm.open_resource(a335_resource)
-    # rs805 = rm.open_resource(rs805_resource)
+    sig_gen = set_up_signal_generator_pulse()
 
-    # a335.write('DISP:TEXT "setting up..."')
+    # setting up plots
+    plt.ion()
+    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(16, 8))
+    ax_all, ax_current = axs
+    ax_current.set_ylabel("Power")
+    ax_current.set_xlabel("time / s")
+    ax_current.set_title(f"Current Frequency: {freq[0]:.6g}")
+    ax_all.set_ylabel("Mean(Abs(Amplitude)) / V")
+    ax_all.set_xlabel("Frequency / Hz")
+    ax_all.set_title(f"Average Response")
+    plt.tight_layout()
 
-    a335.write('OUTPut:ON')
-    a335.write('APPLy:SINusoid 50, 10')
+    # setting up data collection variables
+    runs = 10
+    t = 5  # todo response for 5 secs
+    rate = 4000  # max is 250,000 samples per second >:D
+    num = rate * t  # number of samples to measure
+    times = np.arange(start=0, stop=t, step=(1 / rate))
+    line_current, = ax_current.plot(times, np.zeros_like(times))
 
-    # a335.write('DISP:TEXT "Test running! Be quiet please"')
+    # setting up frequency variables
+    min_freq = 1 / t
+    max_freq = rate / 2  # = (num / 2) / t  # aka Nyquist frequency
+    freqs = np.linspace(start=min_freq, stop=max_freq, num=int((num - 1) / 2), endpoint=True)
+    line_all, = ax_all.plot(freqs, np.zeros_like(freqs))
+    ax_all.set_xlim(ax_lims([min_freq, max_freq]))
+    ax_current.set_xlim([0, t])
 
-    return a335
-    # return rs805
+    fig.canvas.draw()
+    fig.canvas.flush_events()
+    # time.sleep(0.5)  # just to chill after you press start for a second
+
+    with nidaqmx.Task() as task:
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai0")
+        task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
+        data_list = np.ones([len(freqs), runs]) * np.nan
+        for i in tqdm(range(runs)):
+            # sig_gen.write(f'APPLy:SINusoid {f}, 10')
+            # todo do 1 pulse then measure, so we don't have to see the pulse, just the remaining resonance.
+            ax_current.set_title(f"Run number: {str(i).zfill(len(str(runs)))}")
+
+            sig_gen.write(f'APPLy:PULSe {0.25 + 2 * np.random.random()}, MAX')  # randomise signal duration
+            signal = task.read(num)  # raw signal
+
+            # process and write to file
+            data = np.abs(np.fft.fft(signal)[1:int(num / 2)])
+            data_list[:, i] = data
+            # update visual plot of data
+            line_current.set_ydata(signal)
+            ax_current.set_ylim(ax_lims(signal))
+            y = np.nanmean(data_list, 1)
+            # y = savgol_filter(y, int(num / 1000), 3)  # order of fitted polynomial
+            line_all.set_ydata(y)
+            ax_all.set_ylim((0, ax_lims(y)[1]))
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+    plt.close(fig)
+
+    data_out = np.nanmean(data_list, 1)
+    # data_out = savgol_filter(data_out, int(num / 1000), 3)  # todo smoothed, watch out!
+    data_out = data_out / np.mean(data_out)  # somewhat normalise so the average value is 1 (not maximum)
+
+    # file management
+    with open(f"outputs/output.txt", 'w') as out:
+        for i, f in enumerate(freqs):
+            out.write(f"{f:.6g} {data_out[i]:.6g}\n")
+    resave_output()
