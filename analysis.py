@@ -46,14 +46,12 @@ def peak_finder_averages():
 
 
 def peak_finder_with_derivatives():
-    data = np.loadtxt("outputs/python data/J_002.txt")
+    data = np.loadtxt("outputs/python data/J_000.txt")
     a = np.array(data[:, 1])  # make a copy of the amplitudes
 
     found = False
+    likely_correct = False
     while not found:
-        if np.all(a == np.nan):  # if all points are searched
-            break  # this will be useful for the version of the code that will measure then check for a peak repeatedly
-
         # todo assuming equal spacing of x axis!
         d1 = np.gradient(a)
         d1_indexes = [0, *np.where(np.sign(d1[:-1]) == np.sign(d1[1:]), 0, 1)]  # find where d1 changes sign
@@ -65,19 +63,24 @@ def peak_finder_with_derivatives():
         d2_indexes = d2 < 0  # find where there is a local maximum in the amplitudes
         indexes = np.logical_and(d1_indexes, d2_indexes)  # if an index satisfies both gradient conditions
 
-        # todo find the longest run of False on both sides of a run of True
-        options = np.argwhere([0, *np.logical_and(indexes[:-1], indexes[1:])]).flatten()  # candidate indexes for peak
-        # diffs1 = (options - np.roll(options, 1))[1:]  # the 0 index is the roll from end to start
-        diffs = np.ediff1d(options)  # use builtins where possible
+        # a connected group is a run of True
+        # candidate indexes for a peak are found by finding the edges of 1 index out of the connected groups
+        options = np.argwhere([0, *np.logical_and(indexes[:-1], indexes[1:])]).flatten()
+        diffs = np.ediff1d(options)  # find the differences between the positions of the candidate indexes
+        # todo positions should be used so diffs = np.ediff1d(positions[options]) when f isn't equally spaced
         # find the 2 consecutive differences that add to the highest
         sums = (diffs + np.roll(diffs, -1))[:-1]  # ignore the final sum as it adds around the loop to the start!
-        i = options[np.argwhere(sums == np.amax(sums)).flatten()[0] + 1]
+        # chosen = options[np.argwhere(sums == np.amax(sums)).flatten()[0] + 1]  # select the run that is the biggest
+        area_bounds = (options[np.argwhere(sums == np.amax(sums)).flatten()[0]],
+                       options[np.argwhere(sums == np.amax(sums)).flatten()[0] + 2])
+        # find the index of the maximum value within the chosen area
+        i = np.argwhere(a == np.nanmax(a[np.arange(area_bounds[1] - area_bounds[0]) + area_bounds[0]])).flatten()
+        # todo interpolate for frequency where d1 = 0 exactly?
 
-        # i = np.argwhere(a == np.max(a[indexes])).flatten()  # todo carry on from here tomorrow!
+        likely_correct = True  # todo replace with some condition that means it has to be a peak and not just noise!
+        # confidence = peak_width? that's a good condition?
 
-        # todo interpolate for frequency where d2 = 0 exactly?
-
-        if not found:  # todo replace with some condition that means it has to be a peak and not just noise!
+        if likely_correct:
             found = True
             print(f"Peak is f = {data[i, 0]} Hz")
         else:
