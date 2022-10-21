@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def round_sig_figs(x, sig_fig, method='d'):
@@ -28,23 +29,25 @@ def resave_output():
     j = 0
     filler = 3  # length of zero padding
     test_num = str(j).zfill(filler)
-    try:
-        while True:
-            with open(f"outputs/{sample_name}_{test_num}.txt") as a_file:
+    while True:
+        fname = f"{sample_name}_{test_num}.txt"
+        try:
+            with open(f"outputs/{fname}") as a_file:
                 j += 1
             if j > (10 ** filler) - 1:
-                with open(f"outputs/output.txt", 'r') as out:  # reopen the just saved output file in read mode
-                    with open(f"outputs/output_error.txt", 'w') as new_out:
-                        for line in out:  # faster way of doing this? It won't take long either way
-                            new_out.write(line)
+                np.savetxt(f"outputs/output_overwrite_error.txt", np.loadtxt("outputs/output.txt"), fmt='%.6g')
                 raise FileExistsError(f"Somehow {j + 1} unique files with sample name '{sample_name}' exist.\n"
-                                      f"The data is saved in 'output.txt' and now also in 'output_error.'")
+                                      f"The unsorted data is saved in 'output.txt' and in 'output_overwrite_error.txt'")
             test_num = str(j).zfill(filler)
-    except FileNotFoundError:
-        print(f"Copying to file name '{sample_name}_{test_num}.txt'")
-    np.savetxt(f"outputs/{sample_name}_{test_num}.txt", np.loadtxt(f"outputs/output.txt"), fmt='%.6g')
-    # the below method is (probably) slower than savetxt of loadtxt
-    # with open(f"outputs/output.txt", 'r') as out:  # reopen the just saved output file in read mode
-    #     with open(f"outputs/{sample_name}_{test_num}.txt", 'w') as new_out:
-    #         for line in out:
-    #             new_out.write(line)
+        except FileNotFoundError:
+            print(f"Copying to file name '{fname}' and sorting by frequency")
+            break
+    a = np.loadtxt(f"outputs/output.txt")
+    np.savetxt(f"outputs/{fname}", a[np.argsort(a, axis=0)[:, 0]], fmt='%.6g')
+    # this also sorts by frequency (or whatever is in column 0)!
+
+
+def toggle_plot(fig):
+    # credit: https://stackoverflow.com/a/32576093
+    fig.set_visible(not fig.get_visible())
+    plt.draw()

@@ -5,12 +5,11 @@ import nidaqmx
 from tqdm import tqdm
 import time
 
-
 from my_tools import ax_lims, resave_output
 from IO_setup import set_up_signal_generator_sine, set_up_signal_generator_pulse
 
 
-def measure(freq=None, freqstep=5, t=2):
+def measure(freq=None, freqstep=5, t=2, suppressed=False):
     """
     Measures a film by exciting a series of frequencies using sine waves then measuring the response.
     freq=[minf, maxf] is the minimim and maximum frequencies to sweep between
@@ -24,6 +23,10 @@ def measure(freq=None, freqstep=5, t=2):
 
     plt.ion()
     fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(16, 8))
+    if suppressed:
+        fig.set_visible(False)
+    else:
+        fig.set_visible(True)
     ax_all, ax_current = axs
     ax_current.set_ylabel("Amplitude / V")
     ax_current.set_xlabel("time / s")
@@ -31,6 +34,8 @@ def measure(freq=None, freqstep=5, t=2):
     ax_all.set_ylabel("Mean(Abs(Amplitude)) / V")
     ax_all.set_xlabel("Frequency / Hz")
     ax_all.set_title(f"Response")
+    ax_all.set_xlim([freq[0], freq[1]])
+    ax_current.set_xlim([0, t])
     plt.tight_layout()
 
     rate = 2000  # default 1000? It is not. Could find it out somehow
@@ -47,7 +52,7 @@ def measure(freq=None, freqstep=5, t=2):
         task.ai_channels.add_ai_voltage_chan("Dev1/ai0")
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         with open(f"outputs/output.txt", 'w') as out:
-            num_freqs = 1 + int((freq[1] - freq[0]) / freqstep)
+            num_freqs = 1 + int(np.diff(freq) / freqstep)
             data_list = np.zeros(num_freqs)
             freqs = np.linspace(freq[0], freq[1], num_freqs)
             for i, f in tqdm(enumerate(freqs)):
@@ -65,20 +70,19 @@ def measure(freq=None, freqstep=5, t=2):
                 # update visual plot of data
                 line_current.set_ydata(signal)
                 ax_current.set_ylim(ax_lims(signal))
-
                 if i > 0:
                     line_all.set_xdata(freqs[np.nonzero(data_list)])
                     line_all.set_ydata(data_list[np.nonzero(data_list)])
                     ax_all.set_ylim((0, ax_lims(data_list[np.nonzero(data_list)])[1]))
-                else:
-                    ax_all.set_xlim([freq[0], freq[1]])
-                    ax_current.set_xlim([0, t])
                 fig.canvas.draw()
                 fig.canvas.flush_events()
     plt.close(fig)
 
     # file management
-    resave_output()
+    if suppressed:
+        return freqs, data_list
+    else:
+        resave_output()
 
 
 def measure_pulse(freq=None):
@@ -160,3 +164,80 @@ def measure_pulse(freq=None):
         for i, f in enumerate(freqs):
             out.write(f"{f:.6g} {data_out[i]:.6g}\n")
     resave_output()
+
+
+def measure_adaptive(freq=None, t=2):
+    """
+    Measures a film by exciting a series of frequencies using sine waves then measuring the response.
+    freq=[minf, maxf] is the minimim and maximum frequencies the peak is expected to be within
+    t=t is the length of time a measurement takes
+    This function chooses which frequency to measure based on the previous responses to find the peak quickly
+    """
+    plt.ion()
+    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(16, 8))
+    ax_all, ax_current = axs
+    ax_current.set_ylabel("Amplitude / V")
+    ax_current.set_xlabel("time / s")
+    ax_current.set_title(f"Current Frequency:")
+    ax_all.set_ylabel("Mean(Abs(Amplitude)) / V")
+    ax_all.set_xlabel("Frequency / Hz")
+    ax_all.set_title(f"Response")
+    ax_all.set_xlim([freq[0], freq[1]])
+    ax_current.set_xlim([0, t])
+    plt.tight_layout()
+
+    rate = 2000  # default 1000? It is not. Could find it out somehow
+    num = int(rate * t)
+    times = np.arange(num) / rate
+    line_current, = ax_current.plot(times, np.zeros_like(times))
+    line_all, = ax_all.plot([0, 0], [0, 0])
+
+    fig.canvas.draw()
+    fig.canvas.flush_events()
+    # time.sleep(0.5)  # just to chill after you press start for a second
+
+    with nidaqmx.Task() as task:
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai0")
+        task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
+        with open(f"outputs/output.txt", 'w') as out:
+            # num_freqs = 1 + int((freq[1] - freq[0]) / freqstep)
+            # data_list = np.zeros(num_freqs)
+            # freqs = np.linspace(freq[0], freq[1], num_freqs)
+            # for i, f in tqdm(enumerate(freqs)):
+
+            start = int(10)
+            print(f"Finding {start} initial measurements")
+            freqs, data_list = measure(freq=freq, freqstep=(np.diff(freq) / (start - 1)), t=t, suppressed=True)
+            print("Adapting...")  # adaptive
+            found = False
+            i = 0
+            while not found:
+                # sig_gen.write(f'APPLy:SINusoid {f}, 10')
+                # ax_current.set_title(f"Frequency: {f:.6g}")
+                f = np.mean(freqs[1] - freqs[0])  # test in between frequencies
+                # read the microphone data
+                signal = task.read(num)
+
+                # process and write to file
+                data = np.mean(np.abs(signal))  # todo check if it is mean(abs()) ?
+                data_list[i] = data
+                out.write(f"{f:.6g} {data:.6g}\n")
+
+                # update visual plot of data
+                line_current.set_ydata(signal)
+                ax_current.set_ylim(ax_lims(signal))
+                line_all.set_xdata(freqs)
+                line_all.set_ydata(data_list)
+                ax_all.set_ylim((0, ax_lims(data_list)[1]))
+                fig.canvas.draw()
+                fig.canvas.flush_events()
+
+                i += 1
+                if i > 100:
+                    print("No peak found.")
+                    break
+    plt.close(fig)
+
+    # file management
+    if found:
+        resave_output()

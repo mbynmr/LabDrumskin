@@ -1,5 +1,5 @@
 # from testIO import waveform_generators, picoscope, picoscope_check
-# from measurement import measure, measure_pulse
+from measurement import measure, measure_pulse, measure_adaptive
 from analysis import peak_finder_averages, peak_finder_with_derivatives
 
 # in anaconda prompt (pinned)
@@ -23,10 +23,11 @@ from analysis import peak_finder_averages, peak_finder_with_derivatives
 
 def main():
     # peak_finder_averages()
-    peak_finder_with_derivatives()
+    # peak_finder_with_derivatives()
     # picoscope_check()
     # picoscope()
     # measure(freq=[900, 1500], freqstep=5, t=2)
+    measure_adaptive(freq=[900, 1500], t=2)
     # measure_pulse()  # this no works :c
 
 

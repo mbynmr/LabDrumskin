@@ -27,14 +27,14 @@ def peak_finder_averages():
     while not found:
         if np.all(a == np.nan):  # if all points are searched
             break  # this will be useful for the version of the code that will measure then check for a peak repeatedly
-        i = np.argmax(a)
+        i = np.argwhere(a == np.nanmax(a)).flatten()  # todo flatten isn't elegant.
         print(f"Searching f = {data[i, 0]} Hz")
 
         if np.nanmean(a[max(0, i - 10):min(len(a) + 1, i + 10)]) > np.nanmean(a[:]):
             # when the local amplitudes around index i are larger than the global average
             found = True
         else:
-            a[i] = np.nan  # make sure this frequency doesn't come up again and doesn't contribute to any averages
+            a[i] = np.nan  # make sure this frequency is ignored and doesn't contribute to any averages
 
     if found:
         print(f"Peak is f = {data[i, 0]} Hz")
@@ -54,17 +54,26 @@ def peak_finder_with_derivatives():
         if np.all(a == np.nan):  # if all points are searched
             break  # this will be useful for the version of the code that will measure then check for a peak repeatedly
 
-        # d1 = gradient of a  # todo assuming equal spacing of x axis!
+        # todo assuming equal spacing of x axis!
         d1 = np.gradient(a)
-        # d2 = gradient of d1
-        d2 = np.gradient(d1)
-        # find every set of two points between which d1 changes sign
-        change_indexes = np.where(np.sign(d1[:-1]) == np.sign(d1[1:]), 0, 1)
+        d1_indexes = [0, *np.where(np.sign(d1[:-1]) == np.sign(d1[1:]), 0, 1)]  # find where d1 changes sign
         # this is the same length as d2 so [1, 1, -1, -1, 1] is [0, 0, 1, 0, 1]. Removing the first element centres it
-        change_indexes = np.nonzero(change_indexes + np.roll(change_indexes, -1))
-        # now [1, 1, -1, -1, 1] is [0, 1, 1, 1, 1], so every index next to a change is included.
+        d1_indexes = (d1_indexes + np.roll(d1_indexes, -1)) != 0
+        # now [1, 1, -1, -1, 1] is [0, 1, 1, 1, 1], so every index next to a change is included (both sides)
+        d2 = np.gradient(d1)
+        # d2_indexes = np.where(d2 > 0, 1, 0)  # if the point where d1 is 0 is a maximum in the line
+        d2_indexes = d2 < 0  # find where there is a local maximum in the amplitudes
+        indexes = np.logical_and(d1_indexes, d2_indexes)  # if an index satisfies both gradient conditions
 
-        i = np.argmax(a[change_indexes])  # todo carry on from here tomorrow!
+        # todo find the longest run of False on both sides of a run of True
+        options = np.argwhere([0, *np.logical_and(indexes[:-1], indexes[1:])]).flatten()  # candidate indexes for peak
+        # diffs1 = (options - np.roll(options, 1))[1:]  # the 0 index is the roll from end to start
+        diffs = np.ediff1d(options)  # use builtins where possible
+        # find the 2 consecutive differences that add to the highest
+        sums = (diffs + np.roll(diffs, -1))[:-1]  # ignore the final sum as it adds around the loop to the start!
+        i = options[np.argwhere(sums == np.amax(sums)).flatten()[0] + 1]
+
+        # i = np.argwhere(a == np.max(a[indexes])).flatten()  # todo carry on from here tomorrow!
 
         # todo interpolate for frequency where d2 = 0 exactly?
 
@@ -72,7 +81,7 @@ def peak_finder_with_derivatives():
             found = True
             print(f"Peak is f = {data[i, 0]} Hz")
         else:
-            a[i] = np.nan  # make sure this frequency doesn't come up again
+            a[i] = np.nan  # make sure this frequency is ignored
 
     if found:
         plt.plot(data[:, 0], data[:, 1])
