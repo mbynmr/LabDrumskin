@@ -1,5 +1,7 @@
 import pyvisa
 
+from IO_test import waveform_generators, picoscope, picoscope_check
+
 
 def set_up_signal_generator_pulse():
     a335_resource = 'USB0::0x0957::0x1607::MY50003212::INSTR'
@@ -21,7 +23,7 @@ def set_up_signal_generator_pulse():
     # below 100 micro secs the piezo makes less of a sound
     # todo find optimal pulse width
     # maybe try different waveform generators
-    a335.write('FUNCtion:PULSe:WIDTh 0.0001')
+    a335.write('FUNCtion:PULSe:WIDTh 0.01')
 
     # a335.write('DISP:TEXT "Test running! Be quiet please"')
 

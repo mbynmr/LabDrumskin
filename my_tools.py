@@ -27,7 +27,7 @@ def resave_output():
     # saves output.txt under another name
     sample_name = input(f"Output saved in 'output.txt'. If you don't want it to be overwritten, enter sample name:")
     j = 0
-    filler = 3  # length of zero padding
+    filler = 2  # length of zero padding
     test_num = str(j).zfill(filler)
     while True:
         fname = f"{sample_name}_{test_num}.txt"
