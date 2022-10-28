@@ -50,7 +50,6 @@ def measure(freq=None, freqstep=5, t=2, suppressed=False):
         print(chan.ai_rng_high)
 
         with open(f"outputs/output.txt", 'w') as out:
-            out.write(f"Frequency Amplitude")
             num_freqs = 1 + int(np.diff(freq) / freqstep)
             data_list = np.zeros(num_freqs)
             freqs = np.linspace(freq[0], freq[1], num_freqs)
@@ -160,7 +159,6 @@ def measure_pulse(freq=None):
 
     # file management
     with open(f"outputs/output.txt", 'w') as out:
-        out.write(f"Frequency Amplitude")
         for i, f in enumerate(freqs):
             out.write(f"{f:.6g} {data_out[i]:.6g}\n")
     resave_output()
@@ -199,7 +197,6 @@ def measure_adaptive(freq=None, t=2):
         chan = task.ai_channels.add_ai_voltage_chan("Dev1/ai0", min_val=-10.0, max_val=10.0)
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         with open(f"outputs/output.txt", 'w') as out:
-            out.write(f"Frequency Amplitude")
             # num_freqs = 1 + int((freq[1] - freq[0]) / freqstep)
             # data_list = np.zeros(num_freqs)
             # freqs = np.linspace(freq[0], freq[1], num_freqs)
