@@ -26,22 +26,27 @@ def ax_lims(data):
 def resave_output():
     # saves output.txt under another name
     sample_name = input(f"Output saved in 'output.txt'. If you don't want it to be overwritten, enter sample name:")
-    j = 0
-    filler = 2  # length of zero padding
-    test_num = str(j).zfill(filler)
-    while True:
-        fname = f"{sample_name}_{test_num}.txt"
-        try:
-            with open(f"outputs/{fname}") as a_file:
-                j += 1
-            if j > (10 ** filler) - 1:
-                np.savetxt(f"outputs/output_overwrite_error.txt", np.loadtxt("outputs/output.txt"), fmt='%.6g')
-                raise FileExistsError(f"Somehow {j + 1} unique files with sample name '{sample_name}' exist.\n"
-                                      f"The unsorted data is saved in 'output.txt' and in 'output_overwrite_error.txt'")
-            test_num = str(j).zfill(filler)
-        except FileNotFoundError:
-            print(f"Copying to file name '{fname}' and sorting by frequency")
-            break
+
+    if sample_name.split("_")[0] == sample_name.split("_")[-1]:  # if no underscores (not correct but good enough, idc)
+        j = 0
+        filler = 2  # length of zero padding
+        test_num = str(j).zfill(filler)
+        while True:
+            fname = f"{sample_name}_{test_num}.txt"
+            try:
+                with open(f"outputs/{fname}") as a_file:
+                    j += 1
+                if j > (10 ** filler) - 1:
+                    np.savetxt(f"outputs/output_overwrite_error.txt", np.loadtxt("outputs/output.txt"), fmt='%.6g')
+                    raise FileExistsError(f"Somehow {j + 1} unique files with sample name '{sample_name}' exist.\n"
+                                          f"The unsorted data is saved in 'output.txt' & 'output_overwrite_error.txt'")
+                test_num = str(j).zfill(filler)
+            except FileNotFoundError:
+                break
+    else:
+        fname = f"{sample_name}.txt"
+
+    print(f"Copying to file name '{fname}' and sorting by frequency")
     a = np.loadtxt(f"outputs/output.txt")
     np.savetxt(f"outputs/{fname}", a[np.argsort(a, axis=0)[:, 0]], fmt='%.6g')
     # this also sorts by frequency (or whatever is in column 0)!

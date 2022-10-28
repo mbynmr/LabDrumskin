@@ -45,9 +45,12 @@ def measure(freq=None, freqstep=5, t=2, suppressed=False):
     line_all, = ax_all.plot([0, 0], [0, 0])
 
     with nidaqmx.Task() as task:
-        task.ai_channels.add_ai_voltage_chan("Dev1/ai0")
+        chan = task.ai_channels.add_ai_voltage_chan("Dev1/ai0", min_val=-10.0, max_val=10.0)
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
+        print(chan.ai_rng_high)
+
         with open(f"outputs/output.txt", 'w') as out:
+            out.write(f"Frequency Amplitude")
             num_freqs = 1 + int(np.diff(freq) / freqstep)
             data_list = np.zeros(num_freqs)
             freqs = np.linspace(freq[0], freq[1], num_freqs)
@@ -121,7 +124,7 @@ def measure_pulse(freq=None):
     ax_current.set_xlim([0, t])
 
     with nidaqmx.Task() as task:
-        task.ai_channels.add_ai_voltage_chan("Dev1/ai0")
+        chan = task.ai_channels.add_ai_voltage_chan("Dev1/ai0", min_val=-10.0, max_val=10.0)
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         data_list = np.ones([len(freqs), runs]) * np.nan
 
@@ -130,11 +133,6 @@ def measure_pulse(freq=None):
             # todo do 1 pulse then measure, so we don't have to see the pulse, just the remaining resonance.
 
             p = 1 / (0.1 * t + 0.5 * t * np.random.random())  # randomise signal duration
-            # p = p * 10
-            # p = 5/3
-            # p = 20
-            # p = 1
-            # print(p)
             ax_current.set_title(f"Run number: {str(i).zfill(len(str(runs)))}, Pulse Frequency: {p:.3g} Hz")
             sig_gen.write(f'APPLy:PULSe {p}, MAX')  # set signal duration
             # time.sleep(0.0001)
@@ -162,6 +160,7 @@ def measure_pulse(freq=None):
 
     # file management
     with open(f"outputs/output.txt", 'w') as out:
+        out.write(f"Frequency Amplitude")
         for i, f in enumerate(freqs):
             out.write(f"{f:.6g} {data_out[i]:.6g}\n")
     resave_output()
@@ -197,9 +196,10 @@ def measure_adaptive(freq=None, t=2):
     line_all, = ax_all.plot([0, 0], [0, 0])
 
     with nidaqmx.Task() as task:
-        task.ai_channels.add_ai_voltage_chan("Dev1/ai0")
+        chan = task.ai_channels.add_ai_voltage_chan("Dev1/ai0", min_val=-10.0, max_val=10.0)
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         with open(f"outputs/output.txt", 'w') as out:
+            out.write(f"Frequency Amplitude")
             # num_freqs = 1 + int((freq[1] - freq[0]) / freqstep)
             # data_list = np.zeros(num_freqs)
             # freqs = np.linspace(freq[0], freq[1], num_freqs)

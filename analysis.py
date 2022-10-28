@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import time
 
 
@@ -38,15 +38,14 @@ def peak_finder_averages():
 
     if found:
         print(f"Peak is f = {data[i, 0]} Hz")
-        plt.plot(data[:, 0], data[:, 1])
-        plt.plot([data[i, 0], data[i, 0]], [min(data[:, 1]), max(data[:, 1])])
-        plt.show()
+        # plt.plot(data[:, 0], data[:, 1])
+        # plt.plot([data[i, 0], data[i, 0]], [min(data[:, 1]), max(data[:, 1])])
+        # plt.show()
     else:
         print("can't find a peak!")  # shouldn't need to be used in this version!
 
 
-def peak_finder_with_derivatives():
-    data = np.loadtxt("outputs/python data/J_000.txt")
+def peak_finder_with_derivatives(data):
     a = np.array(data[:, 1])  # make a copy of the amplitudes
 
     found = False
@@ -82,13 +81,15 @@ def peak_finder_with_derivatives():
 
         if likely_correct:
             found = True
-            print(f"Peak is f = {data[i, 0]} Hz")
+            # print(f"Peak is f = {data[i, 0]} Hz")
         else:
             a[i] = np.nan  # make sure this frequency is ignored
 
     if found:
-        plt.plot(data[:, 0], data[:, 1])
-        plt.plot([data[i, 0], data[i, 0]], [min(data[:, 1]), max(data[:, 1])])
-        plt.show()
+        # plt.plot(data[:, 0], data[:, 1])
+        # plt.plot([data[i, 0], data[i, 0]], [min(data[:, 1]), max(data[:, 1])])
+        # plt.show()
+        return data[i, 0]
     else:
         print("can't find a peak!")  # shouldn't need to be used in this version!
+        raise Exception
