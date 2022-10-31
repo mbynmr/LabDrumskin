@@ -42,6 +42,7 @@ def measure(freq=None, freqstep=5, t=2, suppressed=False):
     num = int(rate * t)
     times = np.arange(num) / rate
     line_current, = ax_current.plot(times, np.zeros_like(times))
+    ax_current.plot([times[0], times[-1]], [0, 0])
     line_all, = ax_all.plot([0, 0], [0, 0])
 
     with nidaqmx.Task() as task:
@@ -53,12 +54,13 @@ def measure(freq=None, freqstep=5, t=2, suppressed=False):
             num_freqs = 1 + int(np.diff(freq) / freqstep)
             data_list = np.zeros(num_freqs)
             freqs = np.linspace(freq[0], freq[1], num_freqs)
-            for i, f in tqdm(enumerate(freqs)):
+            for i, f in tqdm(enumerate(freqs), total=len(freqs), ncols=100):
                 sig_gen.write(f'APPLy:SINusoid {f}, 10')
                 ax_current.set_title(f"Frequency: {f:.6g}")
 
                 # read the microphone data
                 signal = task.read(num)
+
                 # process and write to file
                 data = np.sqrt(np.mean(np.square(signal)))  # calculate RMS of signal
                 data_list[i] = data
@@ -79,7 +81,7 @@ def measure(freq=None, freqstep=5, t=2, suppressed=False):
     if suppressed:
         return freqs, data_list
     else:
-        resave_output()
+        resave_output(method='S', freqstep=freqstep, t=t)
 
 
 def measure_pulse(freq=None):

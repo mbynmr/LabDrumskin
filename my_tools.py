@@ -23,11 +23,13 @@ def ax_lims(data):
             round_sig_figs(max(data) + diff, 2, 'c'))
 
 
-def resave_output():
+def resave_output(method="", freqstep="", t=""):
     # saves output.txt under another name
     sample_name = input(f"Output saved in 'output.txt'. If you don't want it to be overwritten, enter sample name:")
 
     if sample_name.split("_")[0] == sample_name.split("_")[-1]:  # if no underscores (not correct but good enough, idc)
+        # # inside the if it is expected only a sample name and method (S-C1) are added.
+        sample_name = method + '-' + sample_name + f"{freqstep:'g'}-{t:'g'}"  # add test details to the file name
         j = 0
         filler = 2  # length of zero padding
         test_num = str(j).zfill(filler)
