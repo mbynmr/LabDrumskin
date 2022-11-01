@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
+from tqdm import tqdm
 
 from analysis import peak_finder_with_derivatives
 
@@ -17,27 +18,37 @@ def lorentzian(x, gamma, x0, c, a):
 def fit(file_name_and_path, cutoff=None):
     data = np.loadtxt(file_name_and_path)
 
-    if cutoff is not None:
-        if 0 <= cutoff[0] < cutoff[1] <= 1:
-            data = data[int(len(data[:, 0]) * cutoff[0]):int(len(data[:, 0]) * cutoff[1])]
-        else:
-            raise Exception("Cutoff is the portion of data cut off from the [start, end] of data."
-                            "Values should meet the condition (0 <= cutoff[0] < cutoff[1] <= 1)")
-
-    fpeak = peak_finder_with_derivatives(data)
+    if cutoff is not None and 0 <= cutoff[0] < cutoff[1] <= 1:
+        data = data[int(len(data[:, 0]) * cutoff[0]):int(len(data[:, 0]) * cutoff[1])]
+    # fpeak = peak_finder_with_derivatives(data)
     x = data[:, 0]
     y = data[:, 1]
 
-    plt.plot(x, y)
+    plt.plot(x, y, label="Data")
     out = curve_fit(f=lorentzian, xdata=x, ydata=y, bounds=([0, 50, 0, 0], [1e5, 3500, 2, 1e5]))
-    values = out[0]
-    errors = out[1]
+    # my interpreter is complaining that there are too many values to unpack unless I unpack separately like this
+    values, errors = out[0], out[1]
     # print(f"{errors = }")
     print(f"gamma = {values[0]}\nx0 = {values[1]}\nc = {values[2]}\na = {values[3]}")
-    print(f"found max (x0) = {fpeak[0]}")
-    plt.plot(x, lorentzian(x, values[0], values[1], values[2], values[3]))
-    plt.legend(["Data", "Lorentzian fit"])
+    # print(f"found max (x0) = {fpeak[0]}")
+    fity = lorentzian(x, values[0], values[1], values[2], values[3])
+    plt.plot(x, fity, label="Lorentzian Fit")
+    half = (12 * 2 ** (-1 / 2)) / 2
+    plt.plot(x, half + y - fity, label="Difference")
+    areadiff = np.zeros_like(x)
+    w = 5  # todo
+    for i, ix in enumerate(x):
+        if i <= w or i >= len(x) - w:
+            areadiff[i] = 0
+        else:
+            areadiff[i] = np.trapz(y=y[i-w:i+w+1], x=x[i-w:i+w+1]) - np.trapz(y=fity[i-w:i+w+1], x=x[i-w:i+w+1])
+    if w != 0:
+        areadiff = areadiff / (w * (x[1] - x[0]))  # "normalises" to be on a similar scale to normal differences
+    plt.plot(x, half + areadiff, label="Local Area Difference")
+    plt.plot([min(x), max(x)], [half, half], 'k--', label="_Zero line")
+    plt.legend()
     plt.xlabel("Frequency / Hz")
     plt.ylabel("Response RMS / V")
-    plt.ylim([0, plt.ylim()[1]])
+    # plt.ylim([0, plt.ylim()[1]])
+    plt.ylim([0, 12 * 2 ** (-1 / 2)])
     plt.show()

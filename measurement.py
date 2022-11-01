@@ -42,20 +42,21 @@ def measure(freq=None, freqstep=5, t=2, suppressed=False):
     num = int(rate * t)
     times = np.arange(num) / rate
     line_current, = ax_current.plot(times, np.zeros_like(times))
-    ax_current.plot([times[0], times[-1]], [0, 0])
+    ax_current.plot([times[0], times[-1]], [0, 0], 'k--')
     line_all, = ax_all.plot([0, 0], [0, 0])
 
     with nidaqmx.Task() as task:
-        chan = task.ai_channels.add_ai_voltage_chan("Dev1/ai0", min_val=-10.0, max_val=10.0)
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai0", min_val=-10.0, max_val=10.0)
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
-        print(chan.ai_rng_high)
+        # print(chan.ai_rng_high)
 
         with open(f"outputs/output.txt", 'w') as out:
             num_freqs = 1 + int(np.diff(freq) / freqstep)
             data_list = np.zeros(num_freqs)
             freqs = np.linspace(freq[0], freq[1], num_freqs)
             for i, f in tqdm(enumerate(freqs), total=len(freqs), ncols=100):
-                sig_gen.write(f'APPLy:SINusoid {f}, 10')
+                sig_gen.write(f'APPLy:SINusoid {f}, 10')  # todo
+                # sig_gen.write(f'APPLy:SINusoid {1}, 10')
                 ax_current.set_title(f"Frequency: {f:.6g}")
 
                 # read the microphone data
@@ -68,11 +69,13 @@ def measure(freq=None, freqstep=5, t=2, suppressed=False):
 
                 # update visual plot of data
                 line_current.set_ydata(signal)
-                ax_current.set_ylim(ax_lims(signal))
+                # ax_current.set_ylim(ax_lims(signal))
+                ax_current.set_ylim((-12, 12))
                 if i > 0:
                     line_all.set_xdata(freqs[np.nonzero(data_list)])
                     line_all.set_ydata(data_list[np.nonzero(data_list)])
-                    ax_all.set_ylim((0, ax_lims(data_list[np.nonzero(data_list)])[1]))
+                    ax_all.set_ylim((0, min(ax_lims(data_list[np.nonzero(data_list)])[1], 12 * 2 ** (-1 / 2))))
+                    # ax_all.set_ylim((0, 12 * 2 ** (-1 / 2)))
                 fig.canvas.draw()
                 fig.canvas.flush_events()
     plt.close(fig)
@@ -108,24 +111,26 @@ def measure_pulse(freq=None):
     plt.tight_layout()
 
     # setting up data collection variables
-    runs = int(100)
-    t = 0.4
-    rate = 4000  # max is 250,000 samples per second >:D
+    runs = int(10)
+    t = 5
+    rate = 5000  # max is 250,000 samples per second >:D
     num = int(rate * t)  # number of samples to measure
     times = np.arange(start=0, stop=t, step=(1 / rate))
-    line_current, = ax_current.plot(times, np.zeros_like(times))
+    line_current, = ax_current.plot(times, np.zeros_like(times), label="Raw Data")
 
     # setting up frequency variables
     min_freq = 1 / t
     max_freq = rate / 2  # = (num / 2) / t  # aka Nyquist frequency
     freqs = np.linspace(start=min_freq, stop=max_freq, num=int((num - 1) / 2), endpoint=True)
-    line_all, = ax_all.plot(freqs, np.zeros_like(freqs))
-    line_all_current, = ax_all.plot(freqs, np.zeros_like(freqs))
+    line_all_current, = ax_all.plot(freqs, np.zeros_like(freqs), label="Previous")
+    line_all, = ax_all.plot(freqs, np.zeros_like(freqs), label="Moving Average")
+    ax_all.legend()
+    ax_current.plot([times[0], times[-1]], [0, 0], 'k--', label="_Zero line")
     ax_all.set_xlim(ax_lims([min_freq, max_freq]))
-    ax_current.set_xlim([0, t])
+    ax_current.set_xlim([times[0], times[-1]])
 
     with nidaqmx.Task() as task:
-        chan = task.ai_channels.add_ai_voltage_chan("Dev1/ai0", min_val=-10.0, max_val=10.0)
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai0", min_val=-10.0, max_val=10.0)
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         data_list = np.ones([len(freqs), runs]) * np.nan
 
@@ -146,13 +151,16 @@ def measure_pulse(freq=None):
             # update visual plot of data
             line_current.set_ydata(signal)
             line_all_current.set_ydata(data)
-            ax_current.set_ylim(ax_lims(signal))
+            # ax_current.set_ylim(ax_lims(signal))
+            ax_current.set_ylim((-12, 12))
             y = np.nanmean(data_list, 1)
-            # y = savgol_filter(y, int(num / 1000), 3)  # order of fitted polynomial
+            # y = savgol_filter(y, int(num / 1000), 3)  # smoothing, 3=order of fitted polynomial
             line_all.set_ydata(y)
             ax_all.set_ylim((0, ax_lims(y)[1]))
             fig.canvas.draw()
             fig.canvas.flush_events()
+    print("done!!!!!!!!\n\n\ndone!!!!!!!\n\n\ndone!!!!!")
+    time.sleep(100)
     plt.close(fig)
 
     data_out = np.nanmean(data_list, 1)

@@ -16,7 +16,7 @@ def set_up_signal_generator_pulse():
     # a335.write('DISP:TEXT "setting up..."')
 
     # a335.write('OUTPut:ON')
-    # a335.write('APPLy:PULSe 1.5, MAX')  # todo choose frequency
+    # a335.write('APPLy:PULSe 1.5, MAX')
     a335.write('APPLy:PULSe 1.666667, MAX')
     # 100 micro secs = 0.0001
     # 1 micro sec = 0.00001
@@ -45,7 +45,7 @@ def set_up_signal_generator_sine():
 
     # a335.write('OUTPut OFF')
     # a335.write('OUTPut ON')
-    a335.write('APPLy:SINusoid 50, 10')
+    a335.write('APPLy:SINusoid 50, 10')  # todo
 
     # a335.write('DISP:TEXT "Test running! Be quiet please"')
 
