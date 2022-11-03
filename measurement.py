@@ -6,6 +6,7 @@ from tqdm import tqdm
 import time
 
 from my_tools import ax_lims, resave_output
+from fitting import fit_fast
 from IO_setup import set_up_signal_generator_sine, set_up_signal_generator_pulse
 
 
@@ -38,12 +39,13 @@ def measure(freq=None, freqstep=5, t=2, suppressed=False):
     ax_current.set_xlim([0, t])
     plt.tight_layout()
 
-    rate = 5000  # default 1000? It is not. Could find it out somehow
+    rate = 10001  # default 1000? It is not. Could find it out somehow
     num = int(rate * t)
     times = np.arange(num) / rate
-    line_current, = ax_current.plot(times, np.zeros_like(times))
+    line_current, = ax_current.plot(times[::10], np.zeros_like(times[::10]))
     ax_current.plot([times[0], times[-1]], [0, 0], 'k--')
-    line_all, = ax_all.plot([0, 0], [0, 0])
+    ax_current.set_ylim((-12, 12))
+    line_all, = ax_all.plot([0, 0], [0, 0], label='Data')
 
     with nidaqmx.Task() as task:
         task.ai_channels.add_ai_voltage_chan("Dev1/ai0", min_val=-10.0, max_val=10.0)
@@ -68,14 +70,20 @@ def measure(freq=None, freqstep=5, t=2, suppressed=False):
                 out.write(f"{f:.6g} {data:.6g}\n")
 
                 # update visual plot of data
-                line_current.set_ydata(signal)
-                # ax_current.set_ylim(ax_lims(signal))
-                ax_current.set_ylim((-12, 12))
+                line_current.set_ydata(signal[::10])
                 if i > 0:
                     line_all.set_xdata(freqs[np.nonzero(data_list)])
                     line_all.set_ydata(data_list[np.nonzero(data_list)])
-                    ax_all.set_ylim((0, min(ax_lims(data_list[np.nonzero(data_list)])[1], 12 * 2 ** (-1 / 2))))
-                    # ax_all.set_ylim((0, 12 * 2 ** (-1 / 2)))
+                    if i >= int(len(freqs) / 2):
+                        if i == int(len(freqs) / 2):
+                            line_all_fit, = ax_all.plot([0, 0], [0, 0], label='Lorentzian fit')
+                            ax_all.legend()
+                        fity, values = fit_fast(freqs[:len(data_list)], data_list)
+                        line_all_fit.set_xdata(freqs[:len(data_list)])
+                        line_all_fit.set_ydata(fity)
+                        ax_all.set_title(f"Response with fit: gamma={values[0]:.3g}, x0={values[1]:.4g}, "
+                                         f"c={values[2]:.3g}, a={values[3]:.3g}")
+                    ax_all.set_ylim((0, ax_lims(data_list[np.nonzero(data_list)])[1]))
                 fig.canvas.draw()
                 fig.canvas.flush_events()
     plt.close(fig)
@@ -113,7 +121,7 @@ def measure_pulse(freq=None):
     # setting up data collection variables
     runs = int(10)
     t = 5
-    rate = 5000  # max is 250,000 samples per second >:D
+    rate = 10001  # max is 250,000 samples per second >:D
     num = int(rate * t)  # number of samples to measure
     times = np.arange(start=0, stop=t, step=(1 / rate))
     line_current, = ax_current.plot(times, np.zeros_like(times), label="Raw Data")
@@ -197,7 +205,7 @@ def measure_adaptive(freq=None, t=2):
     ax_current.set_xlim([0, t])
     plt.tight_layout()
 
-    rate = 5000  # default 1000? It is not. Could find it out somehow
+    rate = 10001  # default 1000? It is not. Could find it out somehow
     num = int(rate * t)
     times = np.arange(num) / rate
     line_current, = ax_current.plot(times, np.zeros_like(times))

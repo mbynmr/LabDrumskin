@@ -23,7 +23,7 @@ def set_up_signal_generator_pulse():
     # below 100 micro secs the piezo makes less of a sound
     # todo find optimal pulse width
     # maybe try different waveform generators
-    a335.write('FUNCtion:PULSe:WIDTh 0.01')
+    a335.write('FUNCtion:PULSe:WIDTh 0.0001')
 
     # a335.write('DISP:TEXT "Test running! Be quiet please"')
 
@@ -45,7 +45,7 @@ def set_up_signal_generator_sine():
 
     # a335.write('OUTPut OFF')
     # a335.write('OUTPut ON')
-    a335.write('APPLy:SINusoid 50, 10')  # todo
+    a335.write('APPLy:SINusoid 50, 10')
 
     # a335.write('DISP:TEXT "Test running! Be quiet please"')
 

@@ -25,28 +25,32 @@ def ax_lims(data):
 
 def resave_output(method="", freqstep="", t=""):
     # saves output.txt under another name
-    sample_name = input(f"Output saved in 'output.txt'. If you don't want it to be overwritten, enter sample name:")
+    print("Output saved in 'output.txt'. Enter sample and test details to save a copy with a unique name...")
+    temperature = input(f"Temperature ('rt', '40', etc.):")
+    sample_name = input(f"Sample name ('C0', 'CF4', etc.):")
 
-    if sample_name.split("_")[0] == sample_name.split("_")[-1]:  # if no underscores (not correct but good enough, idc)
+    if len(sample_name.split("_")) == 1:  # if no underscores
         # # inside the if it is expected only a sample name and method (S-C1) are added.
-        sample_name = method + '-' + sample_name + f"{freqstep:'g'}-{t:'g'}"  # add test details to the file name
+        name = method + '-' + temperature + '-' + sample_name  # add some test details to the file name
         j = 0
         filler = 2  # length of zero padding
         test_num = str(j).zfill(filler)
         while True:
-            fname = f"{sample_name}_{test_num}.txt"
+            fname = f"{name}_{test_num}.txt"
             try:
-                with open(f"outputs/{fname}") as a_file:
+                # print(f"'{fname.split('.txt')[0].split(',')[0] + '.txt'}'")
+                with open(f"outputs/{fname}") as file:
+                    # print(f"'{fname.split('.txt')[0].split(',')[0] + '.txt'}' exists in outputs")
                     j += 1
                 if j > (10 ** filler) - 1:
                     np.savetxt(f"outputs/output_overwrite_error.txt", np.loadtxt("outputs/output.txt"), fmt='%.6g')
-                    raise FileExistsError(f"Somehow {j + 1} unique files with sample name '{sample_name}' exist.\n"
+                    raise FileExistsError(f"Somehow {j + 1} unique files with name '{name}' exist.\n"
                                           f"The unsorted data is saved in 'output.txt' & 'output_overwrite_error.txt'")
                 test_num = str(j).zfill(filler)
             except FileNotFoundError:
                 break
     else:
-        fname = f"{sample_name}.txt"
+        fname = f"{sample_name}aa.txt"
 
     print(f"Copying to file name '{fname}' and sorting by frequency")
     a = np.loadtxt(f"outputs/output.txt")
