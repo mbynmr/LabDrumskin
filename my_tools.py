@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 
 def round_sig_figs(x, sig_fig, method='d'):
@@ -23,39 +24,36 @@ def ax_lims(data):
             round_sig_figs(max(data) + diff, 2, 'c'))
 
 
-def resave_output(method="", freqstep="", t=""):
+def resave_output(method=None, save_path="outputs", freqstep=None, t=None):
     # saves output.txt under another name
     print("Output saved in 'output.txt'. Enter sample and test details to save a copy with a unique name...")
-    temperature = input(f"Temperature ('rt', '40', etc.):")
-    sample_name = input(f"Sample name ('C0', 'CF4', etc.):")
+    temperature = input("Temperature ('rt', '40', etc.):")
+    sample_name = input("Sample name ('C0', 'CF4', etc.):")
+    if save_path == "outputs":
+        save_path = input("Write the path to the folder you want to save in (otherwise will go to 'outputs')")
 
-    if len(sample_name.split("_")) == 1:  # if no underscores
-        # # inside the if it is expected only a sample name and method (S-C1) are added.
-        name = method + '-' + temperature + '-' + sample_name  # add some test details to the file name
-        j = 0
-        filler = 2  # length of zero padding
-        test_num = str(j).zfill(filler)
-        while True:
-            fname = f"{name}_{test_num}.txt"
-            try:
-                # print(f"'{fname.split('.txt')[0].split(',')[0] + '.txt'}'")
-                with open(f"outputs/{fname}") as file:
-                    # print(f"'{fname.split('.txt')[0].split(',')[0] + '.txt'}' exists in outputs")
-                    j += 1
-                if j > (10 ** filler) - 1:
-                    np.savetxt(f"outputs/output_overwrite_error.txt", np.loadtxt("outputs/output.txt"), fmt='%.6g')
-                    raise FileExistsError(f"Somehow {j + 1} unique files with name '{name}' exist.\n"
-                                          f"The unsorted data is saved in 'output.txt' & 'output_overwrite_error.txt'")
-                test_num = str(j).zfill(filler)
-            except FileNotFoundError:
-                break
-    else:
-        fname = f"{sample_name}aa.txt"
+    # add some test details to the file name
+    name = '_'.join([str(e).zfill(2) for e in time.localtime()[0:5]]) + f"_{method}_{sample_name}_{temperature}"
+    j = 0
+    filler = 2  # length of zero padding
+    while True:
+        fname = f"{name}_{str(j).zfill(filler)}.txt"
+        try:
+            # print(f"'{fname.split('.txt')[0].split(',')[0] + '.txt'}'")
+            with open(f"{save_path}/{fname}") as file:
+                # print(f"'{fname.split('.txt')[0].split(',')[0] + '.txt'}' exists in outputs")
+                j += 1
+            if j > (10 ** filler) - 1:
+                np.savetxt(f"{save_path}/output_overwrite_error.txt", np.loadtxt("outputs/output.txt"), fmt='%.6g')
+                raise FileExistsError(f"Somehow {j + 1} unique files with name '{name}' exist.\n"
+                                      f"The unsorted data is saved in 'output.txt' and 'output_overwrite_error.txt'")
+        except FileNotFoundError:
+            break
 
     print(f"Copying to file name '{fname}' and sorting by frequency")
     a = np.loadtxt(f"outputs/output.txt")
-    np.savetxt(f"outputs/{fname}", a[np.argsort(a, axis=0)[:, 0]], fmt='%.6g')
-    # this also sorts by frequency (or whatever is in column 0)!
+    # a[np.argsort(a, axis=0)[:, 0]] sorts by frequency (or whatever is in column 0)!
+    np.savetxt(f"{save_path}/{fname}", a[np.argsort(a, axis=0)[:, 0]], fmt='%.6g')
 
 
 def toggle_plot(fig):
