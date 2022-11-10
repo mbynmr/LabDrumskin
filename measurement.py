@@ -10,7 +10,7 @@ from fitting import fit_fast
 from IO_setup import set_up_signal_generator_sine, set_up_signal_generator_pulse
 
 
-def measure(freq=None, freqstep=5, t=2, suppressed=False):
+def measure(freq=None, freqstep=5, t=2, save_path="outputs", suppressed=False):
     """
     Measures a film by exciting a series of frequencies using sine waves then measuring the response.
     freq=[minf, maxf] is the minimim and maximum frequencies to sweep between
@@ -53,47 +53,47 @@ def measure(freq=None, freqstep=5, t=2, suppressed=False):
             data_list = np.zeros(num_freqs)
             freqs = np.linspace(freq[0], freq[1], num_freqs)
             for i, f in tqdm(enumerate(freqs), total=len(freqs), ncols=100):
-                sig_gen.write(f'APPLy:SINusoid {f}, 10')  # todo
-                # sig_gen.write(f'APPLy:SINusoid {1}, 10')
-                ax_current.set_title(f"Frequency: {f:.6g}")
+                # set current frequency
+                sig_gen.write(f'APPLy:SINusoid {f}, 10')
 
-                # read the microphone data
+                # read the microphone data after a short pause
+                time.sleep(min(t / 10, 0.05))
                 signal = task.read(num)
 
                 # process and write to file
                 data = np.sqrt(np.mean(np.square(signal)))  # calculate RMS of signal
                 data_list[i] = data
+                ax_current.set_title(f"Frequency: {f:.6g}, Response: {data:.3g}")
                 out.write(f"{f:.6g} {data:.6g}\n")
 
                 # update visual plot of data
                 line_current.set_ydata(signal)
                 if i > 0:
-                    line_all.set_xdata(freqs[np.nonzero(data_list)])
-                    line_all.set_ydata(data_list[np.nonzero(data_list)])
+                    indexes = data_list.nonzero()
+                    line_all.set_xdata(freqs[indexes])
+                    line_all.set_ydata(data_list[indexes])
                     if i >= int(len(freqs) * 0.75):
                         if i == int(len(freqs) * 0.75):
+                            # plot a fit line
                             line_all_fit, = ax_all.plot([0, 0], [0, 0], label='Lorentzian fit')
                             ax_all.legend()
-                        fity, values = fit_fast(freqs[:len(data_list)], data_list)
-                        line_all_fit.set_xdata(freqs[:len(data_list)])
+                        fity, values = fit_fast(freqs[indexes], data_list[indexes])
+                        line_all_fit.set_xdata(freqs[indexes])
                         line_all_fit.set_ydata(fity)
                         ax_all.set_title(f"Response with fit: gamma={values[0]:.3g}, x0={values[1]:.4g}, "
                                          f"c={values[2]:.3g}, a={values[3]:.3g}")
-                    ax_all.set_ylim((0, ax_lims(data_list[np.nonzero(data_list)])[1]))
+                    ax_all.set_ylim((0, ax_lims(data_list[indexes])[1]))
                 fig.canvas.draw()
                 fig.canvas.flush_events()
+        sig_gen.write('OUTPut OFF')  # stop making an annoying noise!
     plt.close(fig)
+    plt.ioff()
     print(f"Lorentzian fit x0 = {values[1]}")
 
-    # file management
     if suppressed:
         return freqs, data_list
     else:
-        save_path = "C:/Users/mbynmr/OneDrive - The University of Nottingham/Documents" \
-                    "/Shared - Mechanical Vibrations of Ultrathin Films/Lab/data/may all have wax on them" \
-                    "/temps measured on C5"
-        # save_path = "outputs"
-        resave_output(method='S', save_path=save_path, freqstep=freqstep, t=t)
+        return resave_output(method='S', freqstep=freqstep, t=t, save_path=save_path)
 
 
 def measure_pulse(freq=None):

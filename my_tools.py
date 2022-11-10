@@ -24,36 +24,22 @@ def ax_lims(data):
             round_sig_figs(max(data) + diff, 2, 'c'))
 
 
-def resave_output(method=None, save_path="outputs", freqstep=None, t=None):
+def resave_output(method=None, freqstep=None, t=None, save_path="outputs"):
     # saves output.txt under another name
     print("Output saved in 'output.txt'. Enter sample and test details to save a copy with a unique name...")
     temperature = input("Temperature ('rt', '40', etc.):")
     sample_name = input("Sample name ('C0', 'CF4', etc.):")
     if save_path == "outputs":
-        save_path = input("Write the path to the folder you want to save in (otherwise will go to 'outputs')")
+        save_path = input("Write the path to the folder you want to save in (can be 'outputs')")
 
     # add some test details to the file name
-    name = '_'.join([str(e).zfill(2) for e in time.localtime()[0:5]]) + f"_{method}_{sample_name}_{temperature}"
-    j = 0
-    filler = 2  # length of zero padding
-    while True:
-        fname = f"{name}_{str(j).zfill(filler)}.txt"
-        try:
-            # print(f"'{fname.split('.txt')[0].split(',')[0] + '.txt'}'")
-            with open(f"{save_path}/{fname}") as file:
-                # print(f"'{fname.split('.txt')[0].split(',')[0] + '.txt'}' exists in outputs")
-                j += 1
-            if j > (10 ** filler) - 1:
-                np.savetxt(f"{save_path}/output_overwrite_error.txt", np.loadtxt("outputs/output.txt"), fmt='%.6g')
-                raise FileExistsError(f"Somehow {j + 1} unique files with name '{name}' exist.\n"
-                                      f"The unsorted data is saved in 'output.txt' and 'output_overwrite_error.txt'")
-        except FileNotFoundError:
-            break
+    fname = '_'.join([str(e).zfill(2) for e in time.localtime()[0:5]]) + f"_{method}_{sample_name}_{temperature}.txt"
 
     print(f"Copying to file name '{fname}' and sorting by frequency")
     a = np.loadtxt(f"outputs/output.txt")
     # a[np.argsort(a, axis=0)[:, 0]] sorts by frequency (or whatever is in column 0)!
     np.savetxt(f"{save_path}/{fname}", a[np.argsort(a, axis=0)[:, 0]], fmt='%.6g')
+    return f"{save_path}/{fname}"
 
 
 def toggle_plot(fig):

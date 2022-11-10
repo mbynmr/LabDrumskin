@@ -1,9 +1,8 @@
-import time
-
-import nidaqmx
-from pymeasure.instruments.agilent import Agilent33521A
+# import nidaqmx
+# from pymeasure.instruments.agilent import Agilent33521A
 import pyvisa
-import binascii
+# import binascii
+import time
 
 
 def waveform_generators():
