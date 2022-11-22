@@ -24,16 +24,19 @@ def ax_lims(data):
             round_sig_figs(max(data) + diff, 2, 'c'))
 
 
-def resave_output(method=None, freqstep=None, t=None, save_path="outputs"):
+def resave_output(method=None, freqstep=None, t=None, save_path="outputs", temperature=None, sample_name=None):
+    end_time = time.localtime()[0:5]
     # saves output.txt under another name
     print("Output saved in 'output.txt'. Enter sample and test details to save a copy with a unique name...")
-    temperature = input("Temperature ('rt', '40', etc.):")
-    sample_name = input("Sample name ('C0', 'CF4', etc.):")
+    if temperature is None:
+        temperature = input("Temperature ('rt', '40', etc.):")
+    if sample_name is None:
+        sample_name = input("Sample name ('C0', 'CF4', etc.):")
     if save_path == "outputs":
         save_path = input("Write the path to the folder you want to save in (can be 'outputs')")
 
     # add some test details to the file name
-    fname = '_'.join([str(e).zfill(2) for e in time.localtime()[0:5]]) + f"_{method}_{sample_name}_{temperature}.txt"
+    fname = '_'.join([str(e).zfill(2) for e in end_time]) + f"_{method}_{sample_name}_{temperature}.txt"
 
     print(f"Copying to file name '{fname}' and sorting by frequency")
     a = np.loadtxt(f"outputs/output.txt")

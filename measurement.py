@@ -30,12 +30,12 @@ def measure(freq=None, freqstep=5, t=2, save_path="outputs", suppressed=False):
     ax_current.set_title(f"Frequency: {freq[0]:.6g}")
     ax_all.set_ylabel("RMS Voltage / V")
     ax_all.set_xlabel("Frequency / Hz")
-    ax_all.set_title(f"Response")
+    ax_all.set_title(f"Response Spectra")
     ax_all.set_xlim([freq[0], freq[1]])
     ax_current.set_xlim([0, t])
     plt.tight_layout()
 
-    rate = 10001  # default 1000? It is not. Could find it out somehow
+    rate = 10001
     num = int(rate * t)
     times = np.arange(num) / rate
     line_current, = ax_current.plot(times, np.zeros_like(times))
@@ -44,7 +44,7 @@ def measure(freq=None, freqstep=5, t=2, save_path="outputs", suppressed=False):
     line_all, = ax_all.plot([0, 0], [0, 0], label='Data')
 
     with nidaqmx.Task() as task:
-        task.ai_channels.add_ai_voltage_chan("Dev1/ai0", min_val=-10.0, max_val=10.0)
+        task.ai_channels.add_ai_voltage_chan("Dev2/ai0", min_val=-10.0, max_val=10.0)
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         # print(chan.ai_rng_high)
 
@@ -54,7 +54,7 @@ def measure(freq=None, freqstep=5, t=2, save_path="outputs", suppressed=False):
             freqs = np.linspace(freq[0], freq[1], num_freqs)
             for i, f in tqdm(enumerate(freqs), total=len(freqs), ncols=100):
                 # set current frequency
-                sig_gen.write(f'APPLy:SINusoid {f}, 10')
+                sig_gen.write(f'APPLy:SINusoid {f}, 5')  # todo !!! changed from 10 to 5 Vpp
 
                 # read the microphone data after a short pause
                 time.sleep(min(t / 10, 0.05))
@@ -85,10 +85,11 @@ def measure(freq=None, freqstep=5, t=2, save_path="outputs", suppressed=False):
                     ax_all.set_ylim((0, ax_lims(data_list[indexes])[1]))
                 fig.canvas.draw()
                 fig.canvas.flush_events()
-        sig_gen.write('OUTPut OFF')  # stop making an annoying noise!
+    sig_gen.write('OUTPut OFF')  # stop making an annoying noise!
     plt.close(fig)
     plt.ioff()
     print(f"Lorentzian fit x0 = {values[1]}")
+    print(f"Maximum peak value at f = {freqs[np.argmax(data_list)]}")
 
     if suppressed:
         return freqs, data_list
@@ -96,7 +97,7 @@ def measure(freq=None, freqstep=5, t=2, save_path="outputs", suppressed=False):
         return resave_output(method='S', freqstep=freqstep, t=t, save_path=save_path)
 
 
-def measure_pulse(freq=None):
+def measure_pulse(freq=None, save_path="outputs"):
     """
     Measures a film by hitting it with a short pulse and measuring the response.
     freq=[minf, maxf] is the minimim and maximum frequencies to measure
@@ -114,23 +115,25 @@ def measure_pulse(freq=None):
     ax_current.set_ylabel("Power")
     ax_current.set_xlabel("time / s")
     ax_current.set_title(f"Run number: {-1:.6g}")
-    ax_all.set_ylabel("RMS Voltage / V")
+    ax_all.set_ylabel("Response")
     ax_all.set_xlabel("Frequency / Hz")
-    ax_all.set_title(f"Response")
+    ax_all.set_title(f"Response Spectra")
     plt.tight_layout()
 
     # setting up data collection variables
-    runs = int(10)
-    t = 5
+    runs = int(1000)
+    t = 0.2
     rate = 10001  # max is 250,000 samples per second >:D
-    num = int(rate * t)  # number of samples to measure
+    num = int(np.ceil(rate * t))  # number of samples to measure
     times = np.arange(start=0, stop=t, step=(1 / rate))
     line_current, = ax_current.plot(times, np.zeros_like(times), label="Raw Data")
 
     # setting up frequency variables
     min_freq = 1 / t
     max_freq = rate / 2  # = (num / 2) / t  # aka Nyquist frequency
-    freqs = np.linspace(start=min_freq, stop=max_freq, num=int((num - 1) / 2), endpoint=True)
+    num_freqs = (max_freq - 0) / min_freq  # todo is this wrong?
+    freqs = np.linspace(start=min_freq, stop=max_freq, num=int((num / 2) - 1), endpoint=True)
+    # todo this shouldn't be the wrong size!!!!!!!!!!!!!! int((num / 2) - 1) or int((num - 1) / 2))
     line_all_current, = ax_all.plot(freqs, np.zeros_like(freqs), label="Previous")
     line_all, = ax_all.plot(freqs, np.zeros_like(freqs), label="Moving Average")
     ax_all.legend()
@@ -144,9 +147,7 @@ def measure_pulse(freq=None):
         data_list = np.ones([len(freqs), runs]) * np.nan
 
         for i in tqdm(range(runs)):
-            # sig_gen.write(f'APPLy:SINusoid {f}, 10')
             # todo do 1 pulse then measure, so we don't have to see the pulse, just the remaining resonance.
-
             p = 1 / (0.1 * t + 0.5 * t * np.random.random())  # randomise signal duration
             ax_current.set_title(f"Run number: {str(i).zfill(len(str(runs)))}, Pulse Frequency: {p:.3g} Hz")
             sig_gen.write(f'APPLy:PULSe {p}, MAX')  # set signal duration
@@ -168,9 +169,9 @@ def measure_pulse(freq=None):
             ax_all.set_ylim((0, ax_lims(y)[1]))
             fig.canvas.draw()
             fig.canvas.flush_events()
-    print("done!!!!!!!!\n\n\ndone!!!!!!!\n\n\ndone!!!!!")
-    time.sleep(100)
+    sig_gen.write('OUTPut OFF')  # stop making an annoying noise!
     plt.close(fig)
+    plt.ioff()
 
     data_out = np.nanmean(data_list, 1)
     # data_out = savgol_filter(data_out, int(num / 1000), 3)  # smoothed, watch out!
@@ -179,8 +180,8 @@ def measure_pulse(freq=None):
     # file management
     with open(f"outputs/output.txt", 'w') as out:
         for i, f in enumerate(freqs):
-            out.write(f"{f:.6g} {data_out[i]:.6g}\n")
-    resave_output()
+            out.write(f"{f:.6g} {data_out[i]:.6g}\n")  # todo rewrite with np.savetxt and np.loadtxt
+    return resave_output(method="P", save_path=save_path)
 
 
 def measure_adaptive(freq=None, t=2):
@@ -213,7 +214,7 @@ def measure_adaptive(freq=None, t=2):
     line_all, = ax_all.plot([0, 0], [0, 0])
 
     with nidaqmx.Task() as task:
-        chan = task.ai_channels.add_ai_voltage_chan("Dev1/ai0", min_val=-10.0, max_val=10.0)
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai0", min_val=-10.0, max_val=10.0)
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         with open(f"outputs/output.txt", 'w') as out:
             # num_freqs = 1 + int((freq[1] - freq[0]) / freqstep)
