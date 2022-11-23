@@ -1,17 +1,19 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
-from tqdm import tqdm
+# from tqdm import tqdm
 
-from analysis import peak_finder_with_derivatives
+# from analysis import peak_finder_with_derivatives
 
 
 def lorentzian(x, gamma, x0, c, a):
-    # returns a lorentzian evaluated at x (x can be an array)
-    # the width of the peak is a function of "gamma"
-    # the centre of the peak is at position "x0"
-    # average background noise is compensated for by "c"
-    # the scale factor "a" controls the height of the curve
+    """
+    returns a lorentzian evaluated at x (x can be an array)
+    the width of the peak is a function of "gamma"
+    the centre of the peak is at position "x0"
+    the scale factor "a" controls the height of the curve
+    average background noise is compensated for by "c"
+    """
     return c + a * (0.5 * gamma / (np.pi * (np.asarray(x) - x0) ** 2 + (0.5 * gamma) ** 2))
 
 

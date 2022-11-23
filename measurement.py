@@ -44,7 +44,7 @@ def measure(freq=None, freqstep=5, t=2, save_path="outputs", suppressed=False):
     line_all, = ax_all.plot([0, 0], [0, 0], label='Data')
 
     with nidaqmx.Task() as task:
-        task.ai_channels.add_ai_voltage_chan("Dev2/ai0", min_val=-10.0, max_val=10.0)
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai0", min_val=-10.0, max_val=10.0)
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         # print(chan.ai_rng_high)
 
@@ -121,7 +121,7 @@ def measure_pulse(freq=None, save_path="outputs"):
     plt.tight_layout()
 
     # setting up data collection variables
-    runs = int(1000)
+    runs = int(300)
     t = 0.2
     rate = 10001  # max is 250,000 samples per second >:D
     num = int(np.ceil(rate * t))  # number of samples to measure
@@ -146,7 +146,7 @@ def measure_pulse(freq=None, save_path="outputs"):
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         data_list = np.ones([len(freqs), runs]) * np.nan
 
-        for i in tqdm(range(runs)):
+        for i in tqdm(range(runs), total=runs, ncols=100):
             # todo do 1 pulse then measure, so we don't have to see the pulse, just the remaining resonance.
             p = 1 / (0.1 * t + 0.5 * t * np.random.random())  # randomise signal duration
             ax_current.set_title(f"Run number: {str(i).zfill(len(str(runs)))}, Pulse Frequency: {p:.3g} Hz")
@@ -165,6 +165,91 @@ def measure_pulse(freq=None, save_path="outputs"):
             ax_current.set_ylim((-12, 12))
             y = np.nanmean(data_list, 1)
             # y = savgol_filter(y, int(num / 1000), 3)  # smoothing, 3=order of fitted polynomial
+            line_all.set_ydata(y)
+            ax_all.set_ylim((0, ax_lims(y)[1]))
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+    sig_gen.write('OUTPut OFF')  # stop making an annoying noise!
+    plt.close(fig)
+    plt.ioff()
+
+    data_out = np.nanmean(data_list, 1)
+    # data_out = savgol_filter(data_out, int(num / 1000), 3)  # smoothed, watch out!
+    data_out = data_out / np.mean(data_out)  # somewhat normalise so the average value is 1 (not maximum)
+
+    # file management
+    with open(f"outputs/output.txt", 'w') as out:
+        for i, f in enumerate(freqs):
+            out.write(f"{f:.6g} {data_out[i]:.6g}\n")  # todo rewrite with np.savetxt and np.loadtxt
+    return resave_output(method="P", save_path=save_path)
+
+def measure_pulse_decay(freq=None, save_path="outputs"):
+    """
+    Measures a film by hitting it with a short pulse and measuring the response.
+    freq=[minf, maxf] is the minimim and maximum frequencies to measure
+    """
+
+    if freq is None:
+        freq = [50, 2000]
+
+    sig_gen = set_up_signal_generator_pulse()
+
+    # setting up plots
+    plt.ion()
+    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(16, 8))
+    ax_all, ax_current = axs
+    ax_current.set_ylabel("Power")
+    ax_current.set_xlabel("time / s")
+    ax_current.set_title(f"Run number: {-1:.6g}")
+    ax_all.set_ylabel("Response")
+    ax_all.set_xlabel("Frequency / Hz")
+    ax_all.set_title(f"Response Spectra")
+    plt.tight_layout()
+
+    # setting up data collection variables
+    runs = int(300)
+    t = 0.2
+    rate = 10001  # max is 250,000 samples per second >:D
+    num = int(np.ceil(rate * t))  # number of samples to measure
+    times = np.arange(start=0, stop=t, step=(1 / rate))
+    line_current, = ax_current.plot(times, np.zeros_like(times), label="Raw Data")
+
+    # setting up frequency variables
+    min_freq = 1 / t
+    max_freq = rate / 2  # = (num / 2) / t  # aka Nyquist frequency
+    num_freqs = (max_freq - 0) / min_freq  # todo is this wrong?
+    freqs = np.linspace(start=min_freq, stop=max_freq, num=int((num / 2) - 1), endpoint=True)
+    # todo this shouldn't be the wrong size!!!!!!!!!!!!!! int((num / 2) - 1) or int((num - 1) / 2))
+    line_all_current, = ax_all.plot(freqs, np.zeros_like(freqs), label="Previous")
+    line_all, = ax_all.plot(freqs, np.zeros_like(freqs), label="Moving Average")
+    ax_all.legend()
+    ax_current.plot([times[0], times[-1]], [0, 0], 'k--', label="_Zero line")
+    ax_all.set_xlim(ax_lims([min_freq, max_freq]))
+    ax_current.set_xlim([times[0], times[-1]])
+
+    with nidaqmx.Task() as task:
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai0", min_val=-10.0, max_val=10.0)
+        task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
+        data_list = np.ones([len(freqs), runs]) * np.nan
+
+        for i in tqdm(range(runs), total=runs, ncols=100):
+            ax_current.set_title(f"Run number: {str(i).zfill(len(str(runs)))}")
+            sig_gen.write(f'APPLy:PULSe {1 / 0.01}, MAX')  # set signal duration
+            sig_gen.write(f'APPLy:PULSe {1 / 0.2}, MAX')  # set signal duration
+            time.sleep(0.125)
+            signal = task.read(num)  # read the raw microphone signal
+            response = np.where(range(len(signal)) > np.argmax(np.abs(signal)) + 3, signal, 0)
+            # response = signal
+
+            # process and write to file
+            data = np.abs(np.fft.fft(response - np.mean(response))[1:int(num / 2)])
+            data_list[:, i] = data
+            # update visual plot of data
+            line_current.set_ydata(response)
+            line_all_current.set_ydata(data)
+            # ax_current.set_ylim(ax_lims(signal))
+            ax_current.set_ylim((-12, 12))
+            y = np.nanmean(data_list, 1)
             line_all.set_ydata(y)
             ax_all.set_ylim((0, ax_lims(y)[1]))
             fig.canvas.draw()
