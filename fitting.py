@@ -4,6 +4,7 @@ from scipy.optimize import curve_fit
 # from tqdm import tqdm
 
 # from analysis import peak_finder_with_derivatives
+from my_tools import copy2clip
 
 
 def lorentzian(x, gamma, x0, c, a):
@@ -23,29 +24,34 @@ def fit_fast(x, y):
     except RuntimeError:
         print("Fit problem! Ignoring...")
         values = [1, 1, 1, 1]
-    return lorentzian(x, values[0], values[1], values[2], values[3]), values
+    return lorentzian(x, *values), values
 
 
 def fit(file_name_and_path, cutoff=None):
     data = np.loadtxt(file_name_and_path)
     data = data[np.argsort(data, axis=0)[:, 0]]  # sort it!
 
-    if cutoff is not None and 0 <= cutoff[0] < cutoff[1] <= 1:
-        data = data[int(len(data[:, 0]) * cutoff[0]):int(len(data[:, 0]) * cutoff[1])]
+    if cutoff is not None:
+        if 0 <= cutoff[0] < cutoff[1] <= 1:
+            data = data[int(len(data[:, 0]) * cutoff[0]):int(len(data[:, 0]) * cutoff[1])]
     # fpeak = peak_finder_with_derivatives(data)
     x = data[:, 0]
     y = data[:, 1]
 
     plt.plot(x, y, label="Data")
-    values = fit_fast(x, y)[1]
-    # # my interpreter is complaining that there are too many values to unpack unless I unpack separately like this
-    # values, errors = out[0], out[1]
-    # # print(f"{errors = }")
-    print(f"gamma = {values[0]}\nx0 = {values[1]}\nc = {values[2]}\na = {values[3]}")
-    # print(f"found max (x0) = {fpeak[0]}")
-    fity = lorentzian(x, values[0], values[1], values[2], values[3])
+    # values = fit_fast(x, y)[1]
+    out = curve_fit(f=lorentzian, xdata=x, ydata=y, bounds=([0, 50, 0, 0], [1e4, 5000, 2, 1e4]))
+    # my interpreter is complaining that there are too many values to unpack unless I unpack separately like this
+    values, errors = out[0], out[1]
+    errors = np.sqrt(np.diag(errors))
+    # print(f"{errors = }")
+    # print(f"gamma = {values[0]} pm {errors[0]}\nx0 = {values[1]} pm {errors[1]} <----\n"
+    #       f"c = {values[2]} pm {errors[2]}\na = {values[3]} pm {errors[3]}")
+    x0str = f"{values[1]:.{int(len(str(values[1]).split('.')[0]) + len(f'{errors[1]:.1g}'.split('.')[1]))}g}"
+    print(f"x0 = " + x0str + f"\nx0std = {errors[1]:.1g}")
+    copy2clip(x0str)
+    fity = lorentzian(x, *values)
     plt.plot(x, fity, label="Lorentzian Fit")
-    # half = (12 * 2 ** (-1 / 2)) / 2
     half = plt.ylim()[1] / 2
     plt.plot(x, half + y - fity, label="Difference")
     # areadiff = np.zeros_like(x)

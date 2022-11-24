@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+from subprocess import check_call
 
 
 def round_sig_figs(x, sig_fig, method='d'):
@@ -24,7 +25,7 @@ def ax_lims(data):
             round_sig_figs(max(data) + diff, 2, 'c'))
 
 
-def resave_output(method=None, freqstep=None, t=None, save_path="outputs", temperature=None, sample_name=None):
+def resave_output(method=None, save_path="outputs", temperature=None, sample_name=None):
     end_time = time.localtime()[0:5]
     # saves output.txt under another name
     print("Output saved in 'output.txt'. Enter sample and test details to save a copy with a unique name...")
@@ -49,3 +50,9 @@ def toggle_plot(fig):
     # credit: https://stackoverflow.com/a/32576093
     fig.set_visible(not fig.get_visible())
     plt.draw()
+
+
+def copy2clip(txt):
+    # credit: https://stackoverflow.com/a/41029935
+    print(f"Copying {txt} to clipboard")
+    return check_call('echo ' + txt.strip() + '|clip', shell=True)
