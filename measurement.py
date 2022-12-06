@@ -4,13 +4,14 @@ import matplotlib.pyplot as plt
 import nidaqmx
 from tqdm import tqdm
 import time
+from noisyopt import minimizeCompass
 
 from my_tools import ax_lims
 from fitting import fit_fast
 from IO_setup import set_up_signal_generator_sine, set_up_signal_generator_pulse
 
 
-def measure(freq=None, freqstep=5, t=2, suppressed=False):
+def measure(freq=None, freqstep=5, t=2, suppressed=False, devchan="Dev1/ai0"):
     """
     Measures a film by exciting a series of frequencies using sine waves then measuring the response.
     freq=[minf, maxf] is the minimim and maximum frequencies to sweep between
@@ -18,7 +19,7 @@ def measure(freq=None, freqstep=5, t=2, suppressed=False):
     t=t is the length of time a measurement takes
     """
     if freq is None:
-        freq = [50, 2000]
+        freq = [50, 4000]
 
     sig_gen = set_up_signal_generator_sine()
 
@@ -44,7 +45,7 @@ def measure(freq=None, freqstep=5, t=2, suppressed=False):
     line_all, = ax_all.plot([0, 0], [0, 0], label='Data')
 
     with nidaqmx.Task() as task:
-        task.ai_channels.add_ai_voltage_chan("Dev1/ai0", min_val=-10.0, max_val=10.0)
+        task.ai_channels.add_ai_voltage_chan(devchan, min_val=-10.0, max_val=10.0)
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         # print(chan.ai_rng_high)
 
@@ -119,7 +120,7 @@ def measure_pulse_decay(devchan="Dev1/ai0"):
     runs = int(100)
     t = 0.2
     sleep_time = 0.135
-    rate = 10001  # max is 250,000 samples per second >:D
+    rate = 10001  # max is 250,000 samples per second >:D or for Dev2 it's 20e3
     num = int(np.ceil(rate * t))  # number of samples to measure
     times = np.arange(start=0, stop=t, step=(1 / rate))
     line_current, = ax_current.plot(times, np.zeros_like(times), label="Raw Data")
@@ -131,7 +132,9 @@ def measure_pulse_decay(devchan="Dev1/ai0"):
     freqs = np.linspace(start=min_freq, stop=max_freq, num=int((num / 2) - 1), endpoint=True)
     line_all_current, = ax_all.plot(freqs, np.zeros_like(freqs), label="Previous")
     line_all, = ax_all.plot(freqs, np.zeros_like(freqs), label="Moving Average")
-    ax_all.legend()
+    # line_all_min, = ax_all.plot(freqs, np.zeros_like(freqs), label="Minimum")
+    # line_all_max, = ax_all.plot(freqs, np.zeros_like(freqs), label="Maximum")
+    ax_all.legend(loc='upper left')
     ax_current.plot([times[0], times[-1]], [0, 0], 'k--', label="_Zero line")
     ax_current.plot([t / 3, t / 3], [-12, 12], 'k:', label="_Time Boundary")
     ax_all.set_xlim(ax_lims([min_freq, max_freq]))
@@ -142,8 +145,8 @@ def measure_pulse_decay(devchan="Dev1/ai0"):
         task.ai_channels.add_ai_voltage_chan(devchan, min_val=-10.0, max_val=10.0)
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         data_list = np.ones([len(freqs), runs]) * np.nan
-        response = data = y = np.zeros_like(data_list[:, 0])  # make room in memory
-        for i in tqdm(range(runs), total=runs, ncols=100):
+        response = data = y = np.zeros_like(len(freqs))  # make room in memory
+        for i in tqdm(range(runs + 1), total=runs + 1, ncols=100):
             complete = False
             while not complete:
                 # reset signal generator output to get to a known timing
@@ -151,7 +154,7 @@ def measure_pulse_decay(devchan="Dev1/ai0"):
                 sig_gen.write(f'APPLy:PULSe {1 / t}, MAX')
                 ax_current.set_title(f"Run number: {str(i).zfill(len(str(runs)))} of {runs}")
                 start = time.time()
-                if i > 0:
+                if i > 0:  # do processing of previous signal
                     # discount the pulse and everything before it
                     response = np.where(range(len(signal)) > np.argmax(np.abs(signal)) + 10, signal, 0)
                     # process and store
@@ -161,14 +164,15 @@ def measure_pulse_decay(devchan="Dev1/ai0"):
                     # update visual plot of data
                     line_current.set_ydata(response)
                     line_all_current.set_ydata(data)
-                    # ax_current.set_ylim(ax_lims(signal))
+                    # line_all_min.set_ydata(np.nanmin(data_list, 1))  # todo will this be good?
+                    # line_all_max.set_ydata(np.nanmax(data_list, 1))
                     y = np.nanmean(data_list, 1)
                     line_all.set_ydata(y)
                     ax_all.set_ylim((0, ax_lims(y)[1]))
                     fig.canvas.draw()
                     fig.canvas.flush_events()
-                elif i == 0:
-                    time.sleep(sleep_time)
+                # elif i == 0:
+                #     time.sleep(sleep_time)
                 if sleep_time - (time.time() - start) > 1e-3:
                     time.sleep(sleep_time - (time.time() - start))  # wait for next cycle
                 else:
@@ -182,9 +186,6 @@ def measure_pulse_decay(devchan="Dev1/ai0"):
                     complete = True
                 # else:
                 #     print(f"Repeating iteration {i}")  # this print is annoying
-        # process and store
-        response = np.where(range(len(signal)) > np.argmax(np.abs(signal)) + 5, signal, 0)  # discount the pulse
-        data_list[:, i] = np.abs(np.fft.fft(response - np.mean(response))[1:int(num / 2)])
 
     sig_gen.write('OUTPut OFF')  # stop making an annoying noise!
     plt.close(fig)
@@ -194,4 +195,38 @@ def measure_pulse_decay(devchan="Dev1/ai0"):
     arr = np.zeros([len(freqs), 2])
     arr[:, 0] = freqs
     arr[:, 1] = np.nanmean(data_list, 1) / np.mean(np.nanmean(data_list, 1))  # somewhat normalise (mean = 1)
+    # arr[:, 2] = np.nanmin(data_list, 1) / np.mean(np.nanmean(data_list, 1))
     np.savetxt("outputs/output.txt", arr, fmt='%.6g')
+
+
+def measure_adaptive(devchan="Dev2/ai0", tolerance=5):
+    m = Measure(t=0.2, devchan="Dev2/ai0")
+    res = minimizeCompass(m.measure, x0=[1e3], bounds=[[100, 4e3]], errorcontrol=True, disp=False, paired=False,
+                          deltainit=1e3, deltatol=tolerance, funcNinit=3, funcmultfactor=1.5)
+    m.close()
+    print(f"{res.x[0] = }")
+
+
+class Measure:
+    def __init__(self, t, devchan="Dev2/ai0"):
+        rate = 10001
+        self.num = int(rate * t)
+        # self.times = np.arange(self.num) / self.rate
+        self.task = nidaqmx.Task()
+        self.task.ai_channels.add_ai_voltage_chan(devchan, min_val=-10.0, max_val=10.0)
+        self.task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=self.num)
+        self.sig_gen = set_up_signal_generator_sine()
+        self.output = open("outputs/output.txt", "w")
+
+    def measure(self, f):
+        self.sig_gen.write(f'APPLy:SINusoid {float(f)}, 5')  # set the signal generator to the desired frequency
+        time.sleep(0.05)
+        rms = np.sqrt(np.mean(np.square(self.task.read(self.num))))  # read signal from microphone then calculate RMS
+        self.output.write(f"{float(f):.6g} {rms:.6g}\n")
+        return -rms  # function is minimisation so return negative of signal value
+
+    def close(self):
+        self.sig_gen.write('OUTPut OFF')
+        self.task.close()
+        self.sig_gen.close()
+        self.output.close()

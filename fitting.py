@@ -47,8 +47,12 @@ def fit(file_name_and_path, cutoff=None):
     # print(f"{errors = }")
     # print(f"gamma = {values[0]} pm {errors[0]}\nx0 = {values[1]} pm {errors[1]} <----\n"
     #       f"c = {values[2]} pm {errors[2]}\na = {values[3]} pm {errors[3]}")
-    x0str = f"{values[1]:.{int(len(str(values[1]).split('.')[0]) + len(f'{errors[1]:.1g}'.split('.')[1]))}g}"
+    try:
+        x0str = f"{values[1]:.{int(len(str(values[1]).split('.')[0]) + len(f'{errors[1]:.1g}'.split('.')[1]))}g}"
+    except IndexError:
+        x0str = f"{values[1]:.5g}"
     print(f"x0 = " + x0str + f"\nx0std = {errors[1]:.1g}")
+    print(f"fmax = {x[np.argmax(y)]:.5g}")
     copy2clip(x0str)
     fity = lorentzian(x, *values)
     plt.plot(x, fity, label="Lorentzian Fit")
