@@ -6,7 +6,7 @@ from tqdm import tqdm
 import time
 from noisyopt import minimizeCompass
 
-from my_tools import ax_lims
+from my_tools import ax_lims, copy2clip
 from fitting import fit_fast
 from IO_setup import set_up_signal_generator_sine, set_up_signal_generator_pulse
 
@@ -96,7 +96,7 @@ def measure(freq=None, freqstep=5, t=2, suppressed=False, devchan="Dev1/ai0"):
         return freqs, data_list
 
 
-def measure_pulse_decay(devchan="Dev1/ai0"):
+def measure_pulse_decay(devchan="Dev1/ai0", runs=100):
     """
     Measures a film by hitting it with a short pulse and measuring the response.
     freq=[minf, maxf] is the minimim and maximum frequencies to measure
@@ -117,7 +117,7 @@ def measure_pulse_decay(devchan="Dev1/ai0"):
     plt.tight_layout()
 
     # setting up data collection variables
-    runs = int(100)
+    runs = int(runs)
     t = 0.2
     sleep_time = 0.135
     rate = 10001  # max is 250,000 samples per second >:D or for Dev2 it's 20e3
@@ -199,12 +199,13 @@ def measure_pulse_decay(devchan="Dev1/ai0"):
     np.savetxt("outputs/output.txt", arr, fmt='%.6g')
 
 
-def measure_adaptive(devchan="Dev2/ai0", tolerance=5):
-    m = Measure(t=0.2, devchan="Dev2/ai0")
-    res = minimizeCompass(m.measure, x0=[1e3], bounds=[[100, 4e3]], errorcontrol=True, disp=False, paired=False,
-                          deltainit=1e3, deltatol=tolerance, funcNinit=3, funcmultfactor=1.5)
+def measure_adaptive(devchan="Dev2/ai0", tolerance=5, start_guess=1e3):
+    m = Measure(t=0.2, devchan=devchan)
+    res = minimizeCompass(m.measure, x0=[start_guess], bounds=[[100, 4e3]], errorcontrol=True, disp=False, paired=False,
+                          deltainit=1e3, deltatol=tolerance, funcNinit=4, funcmultfactor=1.25)
     m.close()
     print(f"{res.x[0] = }")
+    copy2clip(f"{res.x[0]:.6g}")
 
 
 class Measure:
@@ -218,14 +219,38 @@ class Measure:
         self.sig_gen = set_up_signal_generator_sine()
         self.output = open("outputs/output.txt", "w")
 
+        # plotting things
+        plt.ion()
+        self.fig, self.ax = plt.subplots()
+        self.ax.set_xlabel("Frequency / Hz")
+        self.ax.set_ylabel("Response")
+        self.ax.set_title("Testing f = ")
+        self.line, = self.ax.plot([0, 0], [0, 0], '.')
+        self.ax.set_xlim([0, 4e3])
+        self.x = []
+        self.y = []
+
     def measure(self, f):
         self.sig_gen.write(f'APPLy:SINusoid {float(f)}, 5')  # set the signal generator to the desired frequency
         time.sleep(0.05)
         rms = np.sqrt(np.mean(np.square(self.task.read(self.num))))  # read signal from microphone then calculate RMS
         self.output.write(f"{float(f):.6g} {rms:.6g}\n")
+
+        # plotting things
+        self.x.append(float(f))
+        self.y.append(rms)
+        self.line.set_xdata(self.x)
+        self.line.set_ydata(self.y)
+        self.ax.set_ylim((0, ax_lims(self.y)[1]))
+        self.ax.set_title(f"Testing f = {float(f):.6g}")
+        self.fig.canvas.draw()
+        self.fig.canvas.flush_events()
+
         return -rms  # function is minimisation so return negative of signal value
 
     def close(self):
+        plt.close(self.fig)
+        plt.ioff()
         self.sig_gen.write('OUTPut OFF')
         self.task.close()
         self.sig_gen.close()

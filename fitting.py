@@ -27,7 +27,7 @@ def fit_fast(x, y):
     return lorentzian(x, *values), values
 
 
-def fit(file_name_and_path, cutoff=None):
+def fit(file_name_and_path, cutoff=None, copy=True):
     data = np.loadtxt(file_name_and_path)
     data = data[np.argsort(data, axis=0)[:, 0]]  # sort it!
 
@@ -53,7 +53,8 @@ def fit(file_name_and_path, cutoff=None):
         x0str = f"{values[1]:.5g}"
     print(f"x0 = " + x0str + f"\nx0std = {errors[1]:.1g}")
     print(f"fmax = {x[np.argmax(y)]:.5g}")
-    copy2clip(x0str)
+    if copy:
+        copy2clip(x0str)
     fity = lorentzian(x, *values)
     plt.plot(x, fity, label="Lorentzian Fit")
     half = plt.ylim()[1] / 2

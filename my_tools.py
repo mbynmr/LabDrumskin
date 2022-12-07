@@ -26,9 +26,8 @@ def ax_lims(data):
 
 
 def resave_output(method=None, save_path="outputs", temperature=None, sample_name=None):
-    end_time = time.localtime()[0:5]
     # saves output.txt under another name
-    print("Output saved in 'output.txt'. Enter sample and test details to save a copy with a unique name...")
+    end_time = time.localtime()[0:5]
     if temperature is None:
         temperature = input("Temperature ('rt', '40', etc.):")
     if sample_name is None:
@@ -46,20 +45,21 @@ def resave_output(method=None, save_path="outputs", temperature=None, sample_nam
     return f"{save_path}/{fname}"
 
 
-def resave_auto(save_path="outputs", sample_name=None):
+def resave_auto(save_path="outputs", sample_name=None, method=None):
     end_time = time.localtime()[0:5]
     # saves output.txt under another name
-    print("Output saved in 'auto.txt'. Enter sample to save a copy with a unique name...")
     if sample_name is None:
         sample_name = input("Sample name ('C0', 'CF4', etc.):")
+    if method is None:
+        sample_name = input("Method (S, A ,P):")
     if save_path == "outputs":
         save_path = input("Write the path to the folder you want to save in (can be 'outputs')")
 
     # add some test details to the file name
-    fname = '_'.join([str(e).zfill(2) for e in end_time]) + f"_auto_{sample_name}.txt"
+    fname = '_'.join([str(e).zfill(2) for e in end_time]) + f"_T{method}_{sample_name}.txt"
 
-    print(f"Copying to file name '{fname}'")
-    np.savetxt(f"{save_path}/{fname}", np.loadtxt(f"outputs/output.txt"), fmt='%.6g')
+    print(f"Copying 'autotemp.txt' to file name '{fname}'")
+    np.savetxt(f"{save_path}/{fname}", np.loadtxt(f"outputs/autotemp.txt"), fmt='%.6g')
     return f"{save_path}/{fname}"
 
 
