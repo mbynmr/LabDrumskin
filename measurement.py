@@ -11,7 +11,7 @@ from fitting import fit_fast
 from IO_setup import set_up_signal_generator_sine, set_up_signal_generator_pulse
 
 
-def measure(freq=None, freqstep=5, t=2, suppressed=False, devchan="Dev1/ai0"):
+def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, devchan="Dev1/ai0"):
     """
     Measures a film by exciting a series of frequencies using sine waves then measuring the response.
     freq=[minf, maxf] is the minimim and maximum frequencies to sweep between
@@ -58,7 +58,7 @@ def measure(freq=None, freqstep=5, t=2, suppressed=False, devchan="Dev1/ai0"):
                 sig_gen.write(f'APPLy:SINusoid {f}, 5')  # todo !!! changed from 10 to 5 Vpp
 
                 # read the microphone data after a short pause
-                time.sleep(min(t / 10, 0.05))
+                time.sleep(0.05)
                 signal = task.read(num)
 
                 # process and write to file
@@ -156,7 +156,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100):
                 start = time.time()
                 if i > 0:  # do processing of previous signal
                     # discount the pulse and everything before it
-                    response = np.where(range(len(signal)) > np.argmax(np.abs(signal)) + 10, signal, 0)
+                    response = np.where(range(len(signal)) > np.argmax(np.abs(signal)) + 30, signal, 0)
                     # process and store
                     data = np.abs(np.fft.fft(response - np.mean(response))[1:int(num / 2)])
                     data_list[:, i - 1] = data
@@ -199,9 +199,11 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100):
     np.savetxt("outputs/output.txt", arr, fmt='%.6g')
 
 
-def measure_adaptive(devchan="Dev2/ai0", tolerance=5, start_guess=1e3):
+def measure_adaptive(devchan="Dev2/ai0", tolerance=5, start_guess=1e3, deltainit=1e3, bounds=None):
+    if bounds is None:
+        bounds = [100, 4e3]
     m = Measure(t=0.2, devchan=devchan)
-    res = minimizeCompass(m.measure, x0=[start_guess], bounds=[[100, 4e3]], errorcontrol=True, disp=False, paired=False,
+    res = minimizeCompass(m.measure, x0=[start_guess], bounds=[bounds], errorcontrol=True, disp=False, paired=False,
                           deltainit=1e3, deltatol=tolerance, funcNinit=4, funcmultfactor=1.25)
     m.close()
     print(f"{res.x[0] = }")
