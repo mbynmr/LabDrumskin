@@ -39,7 +39,7 @@ class AutoTemp:
     files will be saved for each temperature that is measured, and a final file that saves all the peaks and their temps
     """
 
-    def __init__(self, save_folder_path, dev_signal, dev_temp, sample_name=None):
+    def __init__(self, save_folder_path, dev_signal, dev_temp, vpp=5, sample_name=None):
         self.save_folder_path = save_folder_path
         if sample_name is None:
             self.sample_name = input("Sample name:")
@@ -65,6 +65,7 @@ class AutoTemp:
 
         # setting up lab equipment
         self.sig_gen = set_up_signal_generator_pulse()
+        self.vpp = vpp
         self.sig_gen.write("OUTPut OFF")
         self.task = nidaqmx.Task()
         self.task.ai_channels.add_ai_voltage_chan(dev_signal, min_val=-10.0, max_val=10.0)
@@ -160,7 +161,7 @@ class AutoTemp:
         print(f"That took {time.time() - overall_start:.4g} seconds")
         resave_auto(save_path=self.save_folder_path, sample_name=self.sample_name, method="S")
 
-    def auto_temp_adaptive(self, tolerance=5, start_guess=1e3, deltainit=1e3, bounds=None, **kwargs):
+    def auto_temp_adaptive(self, vpp=5, tolerance=5, start_guess=1e3, deltainit=1e3, bounds=None, **kwargs):
         if bounds is None:
             bounds = [100, 4e3]
         required_temps, up = self.required_temps_get(**kwargs)
@@ -229,7 +230,7 @@ class AutoTemp:
         self.sig_gen.write("OUTPut OFF")
         return np.nanmean(data_list, 1), temp_get(np.nanmean(temps))
 
-    def measure_sweep(self, freqs):  # returns response to each frequency and the average temperature during the measurement
+    def measure_sweep(self, freqs):  # returns response to each frequency and the average temperature during measurement
         self.sig_gen.write("OUTPut ON")
         data = np.ones([len(freqs)]) * np.nan
         temps = np.ones([len(freqs)]) * np.nan
@@ -237,7 +238,7 @@ class AutoTemp:
         a = np.arange(len(freqs))
         np.random.default_rng().shuffle(a)
         for e in a:
-            self.sig_gen.write(f'APPLy:SINusoid {freqs[e]}, 5')  # todo 10V or 5V?
+            self.sig_gen.write(f'APPLy:SINusoid {freqs[e]}, {self.vpp}')
             time.sleep(0.05)
             signal, temp = self.task.read(self.num)
             data[e] = np.sqrt(np.mean(np.square(signal)))  # calculate RMS of signal
@@ -251,7 +252,7 @@ class AutoTemp:
             a = i[0]
             i[0] = 0  # reset counter
             return a
-        self.sig_gen.write(f'APPLy:SINusoid {float(f)}, 5')  # set the signal generator to the desired frequency
+        self.sig_gen.write(f'APPLy:SINusoid {float(f)}, {self.vpp}')  # set the signal generator to the frequency f
         time.sleep(0.05)
         signal, temps = self.task.read(self.num)
         rms = np.sqrt(np.mean(np.square(signal)))  # read signal from microphone then calculate RMS

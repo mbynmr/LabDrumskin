@@ -19,7 +19,7 @@ def set_up_signal_generator_pulse():
     # 100 micro secs = 0.0001
     # 1 micro sec = 0.00001
     # below 100 micro secs the piezo makes less of a sound
-    # todo find optimal pulse width
+    # to do find optimal pulse width
     # maybe try different waveform generators
     a335.write('FUNCtion:PULSe:WIDTh 0.0001')  # best compromise between width and power is 0.0001 = 100 micro second
 

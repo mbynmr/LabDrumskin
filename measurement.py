@@ -11,7 +11,7 @@ from fitting import fit_fast
 from IO_setup import set_up_signal_generator_sine, set_up_signal_generator_pulse
 
 
-def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, devchan="Dev1/ai0"):
+def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="Dev1/ai0"):
     """
     Measures a film by exciting a series of frequencies using sine waves then measuring the response.
     freq=[minf, maxf] is the minimim and maximum frequencies to sweep between
@@ -57,7 +57,7 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, devchan="Dev1/ai
             np.random.default_rng().shuffle(a)
             for i, f in tqdm(enumerate(freqs), total=len(freqs), ncols=100):
                 # set current frequency
-                sig_gen.write(f'APPLy:SINusoid {f}, 5')  # todo !!! changed from 10 to 5 Vpp
+                sig_gen.write(f'APPLy:SINusoid {f}, {vpp}')
 
                 # read the microphone data after a short pause
                 time.sleep(0.1)
@@ -166,7 +166,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20):
                     # update visual plot of data
                     line_current.set_ydata(response)
                     line_all_current.set_ydata(data)
-                    # line_all_min.set_ydata(np.nanmin(data_list, 1))  # todo will this be good?
+                    # line_all_min.set_ydata(np.nanmin(data_list, 1))
                     # line_all_max.set_ydata(np.nanmax(data_list, 1))
                     y = np.nanmean(data_list, 1)
                     line_all.set_ydata(y)
@@ -201,10 +201,10 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20):
     np.savetxt("outputs/output.txt", arr, fmt='%.6g')
 
 
-def measure_adaptive(devchan="Dev2/ai0", tolerance=5, start_guess=1e3, deltainit=1e3, bounds=None):
+def measure_adaptive(devchan="Dev2/ai0", vpp=5, tolerance=5, start_guess=1e3, deltainit=1e3, bounds=None):
     if bounds is None:
         bounds = [100, 4e3]
-    m = Measure(t=0.2, devchan=devchan)
+    m = Measure(t=0.2, vpp=vpp, devchan=devchan)
     res = minimizeCompass(m.measure, x0=[start_guess], bounds=[bounds], errorcontrol=True, disp=False, paired=False,
                           deltainit=1e3, deltatol=tolerance, funcNinit=4, funcmultfactor=1.25)
     m.close()
@@ -213,7 +213,7 @@ def measure_adaptive(devchan="Dev2/ai0", tolerance=5, start_guess=1e3, deltainit
 
 
 class Measure:
-    def __init__(self, t, devchan="Dev2/ai0"):
+    def __init__(self, t, vpp=5, devchan="Dev2/ai0"):
         rate = 10001
         self.num = int(rate * t)
         # self.times = np.arange(self.num) / self.rate
@@ -221,6 +221,7 @@ class Measure:
         self.task.ai_channels.add_ai_voltage_chan(devchan, min_val=-10.0, max_val=10.0)
         self.task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=self.num)
         self.sig_gen = set_up_signal_generator_sine()
+        self.vpp = vpp
         self.output = open("outputs/output.txt", "w")
 
         # plotting things
@@ -235,7 +236,7 @@ class Measure:
         self.y = []
 
     def measure(self, f):
-        self.sig_gen.write(f'APPLy:SINusoid {float(f)}, 5')  # set the signal generator to the desired frequency
+        self.sig_gen.write(f'APPLy:SINusoid {float(f)}, {self.vpp}')  # set the signal generator to frequency f
         time.sleep(0.05)
         rms = np.sqrt(np.mean(np.square(self.task.read(self.num))))  # read signal from microphone then calculate RMS
         self.output.write(f"{float(f):.6g} {rms:.6g}\n")
