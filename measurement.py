@@ -53,17 +53,19 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, devchan="Dev1/ai
             num_freqs = 1 + int(np.abs(np.diff(freq)) / freqstep)
             data_list = np.zeros(num_freqs)
             freqs = np.linspace(freq[0], freq[1], num_freqs)
+            a = np.array(freqs)
+            np.random.default_rng().shuffle(a)
             for i, f in tqdm(enumerate(freqs), total=len(freqs), ncols=100):
                 # set current frequency
                 sig_gen.write(f'APPLy:SINusoid {f}, 5')  # todo !!! changed from 10 to 5 Vpp
 
                 # read the microphone data after a short pause
-                time.sleep(0.05)
+                time.sleep(0.1)
                 signal = task.read(num)
 
                 # process and write to file
                 data = np.sqrt(np.mean(np.square(signal)))  # calculate RMS of signal
-                data_list[i] = data
+                data_list[np.argwhere(freqs == f)] = data
                 ax_current.set_title(f"Frequency: {f:.6g}, Response: {data:.3g}")
                 out.write(f"{f:.6g} {data:.6g}\n")
 
@@ -96,7 +98,7 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, devchan="Dev1/ai
         return freqs, data_list
 
 
-def measure_pulse_decay(devchan="Dev1/ai0", runs=100):
+def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20):
     """
     Measures a film by hitting it with a short pulse and measuring the response.
     freq=[minf, maxf] is the minimim and maximum frequencies to measure
@@ -156,7 +158,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100):
                 start = time.time()
                 if i > 0:  # do processing of previous signal
                     # discount the pulse and everything before it
-                    response = np.where(range(len(signal)) > np.argmax(np.abs(signal)) + 30, signal, 0)
+                    response = np.where(range(len(signal)) > np.argmax(np.abs(signal)) + delay, signal, 0)
                     # process and store
                     data = np.abs(np.fft.fft(response - np.mean(response))[1:int(num / 2)])
                     data_list[:, i - 1] = data
