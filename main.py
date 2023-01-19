@@ -16,7 +16,7 @@ def main():
     method = "AutoTemp_" + method
     match method.split("_")[0]:
         case "S":
-            measure_sweep(freq=[50, 8000], freqstep=50, t=0.5, vpp=5, devchan=dev_signal)
+            measure_sweep(freq=[50, 2000], freqstep=25, t=0.5, vpp=5, devchan=dev_signal)
             output_file = resave_output(method="S", save_path=save_path)
             fit("outputs/output.txt", [0, 1])
         case "A":
@@ -28,15 +28,15 @@ def main():
             output_file = resave_output(method="P", save_path=save_path)
             fit("outputs/output.txt", [0.1, 0.7])
         case "AutoTemp":
-            at = AutoTemp(save_folder_path=save_path, dev_signal=dev_signal, vpp=5, dev_temp=dev_temp)
+            at = AutoTemp(save_folder_path=save_path, dev_signal=dev_signal, vpp=10, dev_temp=dev_temp)
             match method.split("_")[-1]:
                 case "S":
-                    at.auto_temp_sweep(temp_step=2.5, temp_repeats=3, freq=[400, 800], freqstep=5)
+                    at.auto_temp_sweep(temp_step=2.5, temp_repeats=2, freq=[2000, 2600], freqstep=5)
                 case "A":
-                    at.auto_temp_adaptive(temp_step=2.5, temp_repeats=3,  # start_guess=2e3, tolerance=5,
-                                          tolerance=5, start_guess=2e3, deltainit=5e2, bounds=[1e3, 3e3])
+                    at.auto_temp_adaptive(tolerance=5, start_guess=700, start_delta=1e2, bounds=[1e2, 1e3],
+                                          temp_step=2.5, temp_repeats=3)
                 case "P":
-                    at.auto_temp_pulse(temp_step=2.5, temp_repeats=3, cutoff=[0.1, 0.6], delay=30)
+                    at.auto_temp_pulse(temp_step=2.5, temp_repeats=3, cutoff=[0.1, 0.7], delay=30)
                 case _:
                     at.sample_name = "_"
                     at.calibrate()

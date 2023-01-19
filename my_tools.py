@@ -38,7 +38,7 @@ def resave_output(method=None, save_path="outputs", temperature=None, sample_nam
     # add some test details to the file name
     fname = '_'.join([str(e).zfill(2) for e in end_time]) + f"_{method}_{sample_name}_{temperature}.txt"
 
-    print(f"Copying to file name '{fname}' and sorting by frequency")
+    print(f"\rCopying to file name '{fname}' and sorting by frequency", end='')
     a = np.loadtxt(f"outputs/output.txt")
     # a[np.argsort(a, axis=0)[:, 0]] sorts by frequency (or whatever is in column 0)!
     np.savetxt(f"{save_path}/{fname}", a[np.argsort(a, axis=0)[:, 0]], fmt='%.6g')

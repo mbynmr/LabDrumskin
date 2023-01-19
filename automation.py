@@ -98,24 +98,26 @@ class AutoTemp:
                     sample_name=self.sample_name)
 
                 # fit
-                # freqs = self.freqs[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])]
-                # data = data[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])]
                 try:
                     out = curve_fit(f=lorentzian,
                                     xdata=self.freqs[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])],
                                     ydata=data[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])],
-                                    bounds=([0, 50, 0, 0], [1e4, 5000, 2, 1e4]))
+                                    bounds=([0, 50, 0, 0], [1e4, 3e3, 2, 1e4]))
                     value, error = out[0], out[1]
                     error = np.sqrt(np.diag(error))
+                    if error[1] > 2e1:  # todo tweak
+                        print("\rcurve_fit returned a value with too low confidence", end='')
+                        raise RuntimeError
                 except RuntimeError:
                     f = self.freqs[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])]
                     d = data[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])]
                     value = [0, f[np.argmax(d)]]
                     error = [0, 5 * 2]
-                    print(f"The curve_fit failed. Using fmax: {value[1]:.6g} Hz and error will be {error[1]:.2g} Hz")
-                print(f"Temp {temp:.3g}, peak at {value[1]:.6g} pm {error[1]:.2g} Hz")
+                    print(f"\rThe curve_fit failed. Using fmax: {value[1]:.6g} Hz and error will be {error[1]:.2g} Hz",
+                          end='')
+                print(f"\rTemp {temp:.3g}, peak at {value[1]:.6g} pm {error[1]:.2g} Hz", end='')
                 autotemp.write(f"{temp:.6g} {value[1]:.6g} {error[1]:.6g}\n")
-        print(f"That took {time.time() - overall_start:.6g} seconds")
+        print(f"\rThat took {time.time() - overall_start:.6g} seconds")
         resave_auto(save_path=self.save_folder_path, sample_name=self.sample_name, method="P")
 
     def auto_temp_sweep(self, freq=None, freqstep=5, **kwargs):
@@ -161,9 +163,11 @@ class AutoTemp:
         print(f"That took {time.time() - overall_start:.4g} seconds")
         resave_auto(save_path=self.save_folder_path, sample_name=self.sample_name, method="S")
 
-    def auto_temp_adaptive(self, vpp=5, tolerance=5, start_guess=1e3, deltainit=1e3, bounds=None, **kwargs):
+    def auto_temp_adaptive(self, vpp=5, tolerance=5, start_guess=1e3, start_delta=1e3, bounds=None, **kwargs):
         if bounds is None:
             bounds = [100, 4e3]
+        if start_guess is None:
+            start_guess = 800
         required_temps, up = self.required_temps_get(**kwargs)
 
         overall_start = time.time()
@@ -176,7 +180,7 @@ class AutoTemp:
                     try:
                         res = minimizeCompass(
                             self.measure_adaptive, x0=[start_guess], bounds=[bounds], errorcontrol=True, disp=False,
-                            paired=False, deltainit=deltainit, deltatol=tolerance, funcNinit=4, funcmultfactor=1.25)
+                            paired=False, deltainit=start_delta, deltatol=tolerance, funcNinit=4, funcmultfactor=1.25)
                     except ExitException:
                         continue
                 # print(f"Optimisation found peak at {res.x[0]} after {self.measure_adaptive()} iterations")
@@ -257,7 +261,7 @@ class AutoTemp:
         signal, temps = self.task.read(self.num)
         rms = np.sqrt(np.mean(np.square(signal)))  # read signal from microphone then calculate RMS
         self.out.write(f"{float(f):.6g} {rms:.6g} {temp_get(np.mean(temps)):.6g}\n")
-        if i[0] >= 1e3:
+        if i[0] >= 2e2:
             # credit for this neat mutable argument call counter trick goes to https://stackoverflow.com/a/23160861
             print("minimizeCompass got stuck so is being restarted")
             self.out.close()
@@ -306,13 +310,14 @@ class AutoTemp:
 
     def required_temps_get(self, temp_start=None, temp_stop=None, temp_step=2.5, temp_repeats=1):
         if temp_start is None:
-            temp_start = input("start temp ('C' sets as current):")
-            if temp_start == "C":
-                temp_start = temp_get(np.nanmean(self.task.read(self.num)[1]))
+            temp_start = temp_get(np.nanmean(self.task.read(self.num)[1]))
         temp_start = float(temp_start)
         print(f"Current temp is {temp_start:.4g}")
         if temp_stop is None:
-            temp_stop = float(input("stop temp:"))
+            temp_stop = float(input("stop temp ('NC' to change start temp away from the default current):"))
+            if temp_stop == "NC":
+                temp_stop = float(input("stop temp:"))
+                temp_start = input("start temp:")
 
         # getting correct starting point to make intervals nice
         if not np.isclose(temp_start % temp_step, 0):
@@ -321,6 +326,7 @@ class AutoTemp:
             else:
                 temp_start = temp_start + (temp_step - temp_start % temp_step)
         print(f"start temp is {temp_start:.4g}")
+        print("starting...", end='')
 
         # if temp_start == temp_stop:
         #     raise ValueError("Don't use AutoTemp for single measurements")
@@ -334,8 +340,17 @@ class AutoTemp:
         temp = np.nanmean(temp_get(self.task.read(self.num)[1]))
         while (up and temp < temp_should_be - 0.25) or (not up and temp > temp_should_be + 0.25):
             # repeatedly check if the temp is high/low enough to move on (if it is not enough it will stay here)
-            # print(f"temp is {convert_temp_to_tempstr(temp)}")
             time.sleep(1)
+
+            # printing current temp (trying to avoid annoying formatting)
+            if len(f'{temp:.4g}'.split('.')[-1]) == 2 and len(f'{temp:.4g}') == 5:
+                temp_str = f'{temp:.4g}'
+            elif len(f'{temp:.4g}'.split('.')[-1]) == 1 and len(f'{temp:.4g}') == 4:
+                temp_str = f'{temp:.4g}0'
+            else:
+                temp_str = f'{temp:.4g}'
+            print(f"\rMoving on at {temp_should_be + (-0.25 if up else 0.25):.4g}, current temp is {temp_str}", end='')
+
             temp = np.nanmean(temp_get(self.task.read(self.num)[1]))
         return temp
 
