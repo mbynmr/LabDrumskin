@@ -36,13 +36,18 @@ def resave_output(method=None, save_path="outputs", temperature=None, sample_nam
         save_path = input("Write the path to the folder you want to save in (can be 'outputs')")
 
     # add some test details to the file name
-    fname = '_'.join([str(e).zfill(2) for e in end_time]) + f"_{method}_{sample_name}_{temperature}.txt"
+    fname = '_'.join([str(e).zfill(2) for e in end_time]) + f"_{method}_{sample_name}_{temperature}"
 
-    print(f"\rCopying to file name '{fname}' and sorting by frequency", end='')
     a = np.loadtxt(f"outputs/output.txt")
     # a[np.argsort(a, axis=0)[:, 0]] sorts by frequency (or whatever is in column 0)!
-    np.savetxt(f"{save_path}/{fname}", a[np.argsort(a, axis=0)[:, 0]], fmt='%.6g')
-    return f"{save_path}/{fname}"
+    while True:
+        try:
+            np.loadtxt(f"{save_path}/{fname}.txt")
+        except FileNotFoundError:
+            print(f"\rCopying to file name '{fname}.txt' and sorting by frequency", end='')
+            np.savetxt(f"{save_path}/{fname}.txt", a[np.argsort(a, axis=0)[:, 0]], fmt='%.6g')
+            return f"{save_path}/{fname}.txt"
+        fname = fname + "_"
 
 
 def resave_auto(save_path="outputs", sample_name=None, method=None):
@@ -51,7 +56,7 @@ def resave_auto(save_path="outputs", sample_name=None, method=None):
     if sample_name is None:
         sample_name = input("Sample name ('C0', 'CF4', etc.):")
     if method is None:
-        sample_name = input("Method (S, A ,P):")
+        method = input("Method (S, A ,P):")
     if save_path == "outputs":
         save_path = input("Write the path to the folder you want to save in (can be 'outputs')")
 

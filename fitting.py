@@ -20,9 +20,9 @@ def lorentzian(x, gamma, x0, c, a):
 
 def fit_fast(x, y):
     try:
-        values = curve_fit(f=lorentzian, xdata=x, ydata=y, bounds=([0, 50, 0, 0], [1e4, 3e3, 2, 1e4]))[0]
+        values = curve_fit(f=lorentzian, xdata=x, ydata=y, bounds=([0, 50, 0, 0], [1e4, 5e3, 2, 1e4]))[0]
     except RuntimeError:
-        print("Fit problem! Ignoring...")
+        # print("Fit problem! Ignoring...")
         values = [1, 1, 1, 1]
     return lorentzian(x, *values), values
 
@@ -40,7 +40,7 @@ def fit(file_name_and_path, cutoff=None, copy=True):
 
     plt.plot(x, y, label="Data")
     # values = fit_fast(x, y)[1]
-    out = curve_fit(f=lorentzian, xdata=x, ydata=y, bounds=([0, 50, 0, 0], [1e4, 3e3, 2, 1e4]))
+    out = curve_fit(f=lorentzian, xdata=x, ydata=y, bounds=([0, 50, 0, 0], [1e4, 5e3, 2, 1e4]))
     # my interpreter is complaining that there are too many values to unpack unless I unpack separately like this
     values, errors = out[0], out[1]
     errors = np.sqrt(np.diag(errors))
@@ -51,7 +51,7 @@ def fit(file_name_and_path, cutoff=None, copy=True):
         x0str = f"{values[1]:.{int(len(str(values[1]).split('.')[0]) + len(f'{errors[1]:.1g}'.split('.')[1]))}g}"
     except IndexError:
         x0str = f"{values[1]:.5g}"
-    print(f"x0 = " + x0str + f"\nx0std = {errors[1]:.1g}")
+    print(f"\nx0 = " + x0str + f"\nx0std = {errors[1]:.1g}")
     print(f"fmax = {x[np.argmax(y)]:.5g}")
     if copy:
         copy2clip(x0str)

@@ -79,45 +79,50 @@ class AutoTemp:
         data_list = np.ones([len(self.freqs), len(required_temps)]) * np.nan
         temps = np.ones([len(required_temps)]) * np.nan
         overall_start = time.time()
-        with open("outputs/autotemp.txt", "w") as autotemp:
-            for i, temp_should_be in enumerate(required_temps):
-                temp = self.temp_move_on(temp_should_be, up)
+        with open("outputs/autotemp.txt", "w") as autotemp:  # reset the file
+            pass
+        for i, temp_should_be in enumerate(required_temps):
+            temp = self.temp_move_on(temp_should_be, up)
 
-                data, temp = self.measure_pulse(delay=delay)
-                data_list[:, i] = data
-                temps[i] = float(temp)
+            data, temp = self.measure_pulse(delay=delay)
+            data_list[:, i] = data
+            temps[i] = float(temp)
 
-                # file management
-                arr = np.zeros([len(data), 2])
-                arr[:, 0] = self.freqs
-                arr[:, 1] = data
-                np.savetxt("outputs/output.txt", arr)
-                resave_output(
-                    method=f"TP{str(i).zfill(len(str(len(required_temps))))}",
-                    save_path=self.save_folder_path + r"\Auto", temperature=convert_temp_to_tempstr(temp),
-                    sample_name=self.sample_name)
+            # file management
+            arr = np.zeros([len(data), 2])
+            arr[:, 0] = self.freqs
+            arr[:, 1] = data
+            np.savetxt("outputs/output.txt", arr)
+            resave_output(
+                method=f"TP{str(i).zfill(len(str(len(required_temps))))}",
+                save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
+                sample_name=self.sample_name)
 
-                # fit
-                try:
-                    out = curve_fit(f=lorentzian,
-                                    xdata=self.freqs[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])],
-                                    ydata=data[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])],
-                                    bounds=([0, 50, 0, 0], [1e4, 3e3, 2, 1e4]))
-                    value, error = out[0], out[1]
-                    error = np.sqrt(np.diag(error))
-                    if error[1] > 2e1:  # todo tweak
-                        print("\rcurve_fit returned a value with too low confidence", end='')
-                        raise RuntimeError
-                except RuntimeError:
-                    f = self.freqs[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])]
-                    d = data[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])]
-                    value = [0, f[np.argmax(d)]]
-                    error = [0, 5 * 2]
-                    print(f"\rThe curve_fit failed. Using fmax: {value[1]:.6g} Hz and error will be {error[1]:.2g} Hz",
-                          end='')
+            # fit
+            try:
+                out = curve_fit(f=lorentzian,
+                                xdata=self.freqs[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])],
+                                ydata=data[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])],
+                                bounds=([0, 1e3, 0, 0], [1e4, 5e3, 2, 1e4]))
+                value, error = out[0], out[1]
+                error = np.sqrt(np.diag(error))
+                if error[1] > 2e1:  # todo tweak
+                    # print("curve_fit returned a value with too low confidence")
+                    raise RuntimeError
                 print(f"\rTemp {temp:.3g}, peak at {value[1]:.6g} pm {error[1]:.2g} Hz", end='')
+            except RuntimeError:
+                f = self.freqs[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])]
+                d = data[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])]
+                value = [0, f[np.argmax(d)]]
+                error = [0, 5 * 2]
+                # print(f"The curve_fit failed. Using fmax: {value[1]:.6g} Hz and error will be {error[1]:.2g} Hz")
+                print(f"\rTemp {temp:.3g}, peak at {value[1]:.6g} pm {error[1]:.2g} Hz - curve_fit failed", end='')
+            with open("outputs/autotemp.txt", "a") as autotemp:
                 autotemp.write(f"{temp:.6g} {value[1]:.6g} {error[1]:.6g}\n")
-        print(f"\rThat took {time.time() - overall_start:.6g} seconds")
+
+        total_t = time.time() - overall_start
+        print(f"\rThat took {total_t:.6g} seconds")
+        print(f"Or {total_t // (60 * 60)}h {(total_t % (60 * 60)) // 60}m {total_t % 60:.4g}s")
         resave_auto(save_path=self.save_folder_path, sample_name=self.sample_name, method="P")
 
     def auto_temp_sweep(self, freq=None, freqstep=5, **kwargs):
@@ -129,38 +134,46 @@ class AutoTemp:
         # temps = np.ones([len(required_temps)]) * np.nan
 
         overall_start = time.time()
-        with open("outputs/autotemp.txt", "w") as autotemp:
-            for i, temp_should_be in enumerate(required_temps):
-                temp = self.temp_move_on(temp_should_be, up)
+        with open("outputs/autotemp.txt", "w") as autotemp:  # reset the file
+            pass
+        for i, temp_should_be in enumerate(required_temps):
+            temp = self.temp_move_on(temp_should_be, up)
 
-                data, temp = self.measure_sweep(freqs)
-                data_list[:, i] = data
-                # temps[i] = float(temp)
+            data, temp = self.measure_sweep(freqs)
+            data_list[:, i] = data
+            # temps[i] = float(temp)
 
-                # file management
-                arr = np.zeros([len(data), 2])
-                arr[:, 0] = freqs
-                arr[:, 1] = data
-                np.savetxt("outputs/output.txt", arr)
-                resave_output(
-                    method=f"TS{str(i).zfill(len(str(len(required_temps))))}",
-                    save_path=self.save_folder_path + r"\Auto", temperature=convert_temp_to_tempstr(temp),
-                    sample_name=self.sample_name)
+            # file management
+            arr = np.zeros([len(data), 2])
+            arr[:, 0] = freqs
+            arr[:, 1] = data
+            np.savetxt("outputs/output.txt", arr)
+            resave_output(
+                method=f"TS{str(i).zfill(len(str(len(required_temps))))}",
+                save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
+                sample_name=self.sample_name)
 
-                # fit
-                try:
-                    out = curve_fit(f=lorentzian, xdata=freqs, ydata=data, bounds=([0, freq[0], 0, 0],
-                                                                                   [1e4, freq[-1], 2, 1e4]))
-                    value, error = out[0], out[1]
-                    error = np.sqrt(np.diag(error))
-                except RuntimeError:
-                    value = [0, freqs[np.argmax(data)]]
-                    error = [0, freqstep * 2]
-                    print(f"The curve_fit failed. Using fmax: {value[1]:.6g} Hz and error will be {error[1]:.2g} Hz")
-                print(f"Temp {temp:.3g}, peak at {value[1]:.6g} pm {error[1]:.2g} Hz")
+            # fit
+            try:
+                out = curve_fit(f=lorentzian, xdata=freqs, ydata=data, bounds=([0, freq[0], 0, 0],
+                                                                               [1e4, freq[-1], 2, 1e4]))
+                value, error = out[0], out[1]
+                error = np.sqrt(np.diag(error))
+                if error[1] > 2e1:  # todo tweak
+                    # print("curve_fit returned a value with too low confidence")
+                    raise RuntimeError
+                print(f"\rTemp {temp:.3g}, peak at {value[1]:.6g} pm {error[1]:.2g} Hz", end='')
+            except RuntimeError:
+                value = [0, freqs[np.argmax(data)]]
+                error = [0, freqstep * 2]
+                # print(f"The curve_fit failed. Using fmax: {value[1]:.6g} Hz and error will be {error[1]:.2g} Hz")
+                print(f"\rTemp {temp:.3g}, peak at {value[1]:.6g} pm {error[1]:.2g} Hz - curve_fit failed", end='')
+            with open("outputs/autotemp.txt", "a") as autotemp:
                 autotemp.write(f"{temp:.6g} {value[1]:.6g} {error[1]:.6g}\n")
 
-        print(f"That took {time.time() - overall_start:.4g} seconds")
+        total_t = time.time() - overall_start
+        print(f"\rThat took {total_t:.6g} seconds")
+        print(f"Or {total_t // (60 * 60)}h {(total_t % (60 * 60)) // 60}m {total_t % 60:.4g}s")
         resave_auto(save_path=self.save_folder_path, sample_name=self.sample_name, method="S")
 
     def auto_temp_adaptive(self, vpp=5, tolerance=5, start_guess=1e3, start_delta=1e3, bounds=None, **kwargs):
@@ -171,32 +184,35 @@ class AutoTemp:
         required_temps, up = self.required_temps_get(**kwargs)
 
         overall_start = time.time()
-        with open("outputs/autotemp.txt", "w") as autotemp:
-            for i, temp_should_be in enumerate(required_temps):
-                temp = self.temp_move_on(temp_should_be, up)
+        with open("outputs/autotemp.txt", "w") as autotemp:  # reset the file
+            pass
+        for i, temp_should_be in enumerate(required_temps):
+            temp = self.temp_move_on(temp_should_be, up)
 
-                res = None
-                while res is None:
-                    try:
-                        res = minimizeCompass(
-                            self.measure_adaptive, x0=[start_guess], bounds=[bounds], errorcontrol=True, disp=False,
-                            paired=False, deltainit=start_delta, deltatol=tolerance, funcNinit=4, funcmultfactor=1.25)
-                    except ExitException:
-                        continue
-                # print(f"Optimisation found peak at {res.x[0]} after {self.measure_adaptive()} iterations")
-                # this is the best way I can think to stop minimizeCompass going for too long without reaching into it
+            res = None
+            while res is None:
+                try:
+                    res = minimizeCompass(
+                        self.measure_adaptive, x0=[start_guess], bounds=[bounds], errorcontrol=True, disp=False,
+                        paired=False, deltainit=start_delta, deltatol=tolerance, funcNinit=4, funcmultfactor=1.25)
+                except ExitException:
+                    continue
+            # print(f"Optimisation found peak at {res.x[0]} after {self.measure_adaptive()} iterations")
+            # this is the best way I can think to stop minimizeCompass going for too long without reaching into it
 
-                # file management
-                self.out.close()
-                np.savetxt("outputs/output.txt", np.loadtxt("outputs/output_a.txt"), fmt='%.6g')
-                self.out = open("outputs/output_a.txt", "w")
-                resave_output(
-                    method=f"TA{str(i).zfill(len(str(len(required_temps))))}",
-                    save_path=self.save_folder_path + r"\Auto", temperature=convert_temp_to_tempstr(temp),
-                    sample_name=self.sample_name)
+            # file management
+            self.out.close()
+            np.savetxt("outputs/output.txt", np.loadtxt("outputs/output_a.txt"), fmt='%.6g')
+            self.out = open("outputs/output_a.txt", "w")
+            resave_output(
+                method=f"TA{str(i).zfill(len(str(len(required_temps))))}",
+                save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
+                sample_name=self.sample_name)
 
-                print(f"Temp {temp:.3g}, peak at {res.x[0]:.6g} pm {tolerance /2:.2g} Hz after"
-                      f"{self.measure_adaptive()} measurements")
+            print(f"Temp {temp:.3g}, peak at {res.x[0]:.6g} pm {tolerance /2:.2g} Hz after"
+                  f"{self.measure_adaptive()} measurements")
+
+            with open("outputs/autotemp.txt", "a") as autotemp:
                 autotemp.write(f"{temp:.6g} {res.x[0]:.6g} {tolerance / 2:.6g}\n")
         print(f"That took {time.time() - overall_start:.4g} seconds")
         resave_auto(save_path=self.save_folder_path, sample_name=self.sample_name, method="A")
