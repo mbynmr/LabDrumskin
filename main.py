@@ -1,3 +1,5 @@
+import numpy as np
+
 from measurement import measure_sweep, measure_pulse_decay, measure_adaptive
 from automation import AutoTemp
 from fitting import fit
@@ -11,14 +13,15 @@ def main():
                 r"\Shared - Mechanical Vibrations of Ultrathin Films\Lab\data\PDMS"
     dev_signal = "Dev2/ai0"
     dev_temp = "Dev2/ai1"
-    method = "S"
+    method = "agg"
+    # method = "S"
     # method = "A"
-    method = "P"
-    method = "AutoTemp_" + method
+    # method = "P"
+    # method = "AutoTemp_" + method
     # method = "other_" + method
     match method.split("_")[0]:
         case "S":
-            measure_sweep(freq=[50, 5000], freqstep=25, t=0.5, vpp=10, devchan=dev_signal)
+            measure_sweep(freq=[50, 20000], freqstep=25, t=0.2, vpp=1, devchan=dev_signal)
             output_file = resave_output(method="S", save_path=save_path)
             fit("outputs/output.txt", [0, 1])
         case "A":
@@ -28,24 +31,26 @@ def main():
         case "P":
             measure_pulse_decay(dev_signal, runs=33, delay=10)
             output_file = resave_output(method="P", save_path=save_path)
-            fit("outputs/output.txt", [0.0, 1.0])
+            fit("outputs/output.txt", [0.2, 0.8])
         case "AutoTemp":
-            at = AutoTemp(save_folder_path=save_path + r"\AutoTemp", dev_signal=dev_signal, vpp=1, dev_temp=dev_temp)
+            at = AutoTemp(save_folder_path=save_path + r"\AutoTemp", dev_signal=dev_signal, vpp=10, dev_temp=dev_temp)
+            bounds = [float(input("lower freq:")), float(input("upper freq:"))]
             match method.split("_")[-1]:
                 case "S":
-                    at.auto_temp_sweep(temp_step=2.5, temp_repeats=3, freq=[2400, 4400], freqstep=25)
+                    at.auto_temp_sweep(bounds=bounds, freqstep=50, temp_step=2.5, temp_repeats=2)
                 case "A":
-                    at.auto_temp_adaptive(tolerance=5, start_guess=5e2, start_delta=1e2, bounds=[1e2, 9e2],
+                    at.auto_temp_adaptive(tolerance=5, start_guess=5e2, start_delta=1e2, bounds=bounds,
                                           temp_step=2.5, temp_repeats=3)
                 case "P":
-                    at.auto_temp_pulse(temp_step=2.5, temp_repeats=3, cutoff=[0.0, 1.0], delay=10)
+                    at.auto_temp_pulse(bounds=bounds, delay=10, temp_step=2.5, temp_repeats=3)
                 case _:
                     at.sample_name = "_"
                     at.calibrate()
             at.close()
+        case "agg":
+            aggregate(a_or_s='s')
         case _:
             resave_auto(save_path=save_path + r"\AutoTemp")
-            # aggregate()
             # colourplot()
 
 

@@ -36,7 +36,7 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="
     ax_current.set_xlim([0, t])
     plt.tight_layout()
 
-    rate = 10001
+    rate = 20000
     num = int(rate * t)
     times = np.arange(num) / rate
     line_current, = ax_current.plot(times, np.zeros_like(times))
@@ -122,7 +122,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20):
     runs = int(runs)
     t = 0.2
     sleep_time = 0.135
-    rate = 10001  # max is 250,000 samples per second >:D or for Dev2 it's 20e3
+    rate = 20000  # 20e3
     num = int(np.ceil(rate * t))  # number of samples to measure
     times = np.arange(start=0, stop=t, step=(1 / rate))
     line_current, = ax_current.plot(times, np.zeros_like(times), label="Raw Data")

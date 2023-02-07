@@ -32,6 +32,23 @@ def convert_temp_to_tempstr(temp):
     return tempstr
 
 
+def set_up_daq(mode, c1, c2, rate=int(20e3), t=0.2):
+    task = nidaqmx.Task()
+    match mode:
+        case 'dual':
+            num = int(np.ceil(int(rate / 2) * t))  # number of samples to measure
+            task.ai_channels.add_ai_voltage_chan(c1, min_val=-10.0, max_val=10.0)
+            task.timing.cfg_samp_clk_timing(rate=int(rate / 2), samps_per_chan=num)
+            task.ai_channels.add_ai_voltage_chan(c2, min_val=-10.0, max_val=10.0)
+        case 'single':
+            num = int(np.ceil(rate * t))  # number of samples to measure
+            task.ai_channels.add_ai_voltage_chan(c1, min_val=-10.0, max_val=10.0)
+            task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
+        case _:
+            raise ValueError("'dual' or 'single' mode for set_up_daq_task")
+    return task, num
+
+
 class AutoTemp:
     """
     Automatically measures at given temperatures
@@ -46,51 +63,60 @@ class AutoTemp:
         else:
             self.sample_name = sample_name
 
-        # setting up data collection variables
-        self.runs = int(33)
-        self.t = 0.2
-        self.sleep_time = 0.135
-        rate = 10000  # max is 250,000 samples per second >:D
-        self.num = int(np.ceil(rate * self.t))  # number of samples to measure
-        # times = np.arange(start=0, stop=self.t, step=(1 / rate))
+        self.dev_signal = dev_signal
+        self.dev_temp = dev_temp
 
-        # setting up frequency variables
-        min_freq = 1 / self.t
-        max_freq = rate / 2  # = (num / 2) / t  # aka Nyquist frequency
-        # self.num_freqs = (self.max_freq - 0) / self.min_freq
-        self.freqs = np.linspace(start=min_freq, stop=max_freq, num=int((self.num / 2) - 1), endpoint=True)
+        # setting up data collection
+        self.rate = 20000  # max samples per second of the DAQ card
+        self.t = 0.2
+        self.task, self.num = set_up_daq(mode='dual', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)
 
         # storage for adaptive
         self.out = open("outputs/output_a.txt", 'w')
 
-        # setting up lab equipment
+        # setting up signal generator
         self.sig_gen = set_up_signal_generator_pulse()
         self.vpp = vpp
         self.sig_gen.write("OUTPut OFF")
-        self.task = nidaqmx.Task()
-        self.task.ai_channels.add_ai_voltage_chan(dev_signal, min_val=-10.0, max_val=10.0)
-        self.task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=self.num)
-        self.task.ai_channels.add_ai_voltage_chan(dev_temp, min_val=-10.0, max_val=10.0)
 
-    def auto_temp_pulse(self, cutoff=None, delay=20, **kwargs):
-        if cutoff is None:
-            cutoff = [0.25, 0.75]
+    def auto_temp_pulse(self, bounds=None, delay=20, **kwargs):
+        if bounds is None:
+            bounds = [1e3, 4e3]
+        cutoff = np.divide(bounds, 10e3)
+
+        sleep_time = 0.135
+        # times = np.arange(start=0, stop=self.t, step=(1 / rate))
+
+        # setting up frequency variables
+        num = int(np.ceil(self.rate * self.t))  # number of samples to measure
+        min_freq = 1 / self.t
+        max_freq = self.rate / 2  # = (num / 2) / t  # aka Nyquist frequency
+        # self.num_freqs = (self.max_freq - 0) / self.min_freq
+        freqs = np.linspace(start=min_freq, stop=max_freq, num=int((num / 2) - 1), endpoint=True)
+
+        self.task.close()
+        self.task = set_up_daq(mode='dual', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)[0]
         required_temps, up = self.required_temps_get(**kwargs)
-        data_list = np.ones([len(self.freqs), len(required_temps)]) * np.nan
+        data_list = np.ones([len(freqs), len(required_temps)]) * np.nan
         temps = np.ones([len(required_temps)]) * np.nan
         overall_start = time.time()
         with open("outputs/autotemp.txt", "w") as autotemp:  # reset the file
             pass
+
         for i, temp_should_be in enumerate(required_temps):
             temp = self.temp_move_on(temp_should_be, up)
 
-            data, temp = self.measure_pulse(delay=delay)
-            data_list[:, i] = data
-            temps[i] = float(temp)
+            self.task.close()
+            self.task, num = set_up_daq(mode='single', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)
+            data = self.measure_pulse(freqs=freqs, delay=delay, sleep_time=sleep_time, num=num)
+            self.task.close()
+            self.task = set_up_daq(mode='dual', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)[0]
+            temps[i] = (float(temp) + float(np.nanmean(temp_get(self.task.read(self.num)[1])))) / 2
 
-            # file management
+            # data/file management
+            data_list[:, i] = data
             arr = np.zeros([len(data), 2])
-            arr[:, 0] = self.freqs
+            arr[:, 0] = freqs
             arr[:, 1] = data
             np.savetxt("outputs/output.txt", arr)
             resave_output(
@@ -101,9 +127,9 @@ class AutoTemp:
             # fit
             try:
                 out = curve_fit(f=lorentzian,
-                                xdata=self.freqs[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])],
+                                xdata=freqs[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])],
                                 ydata=data[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])],
-                                bounds=([0, 1e3, 0, 0], [1e4, 5e3, 2, 1e4]))
+                                bounds=([0, bounds[0], 0, 0], [1e5, bounds[1], 2, 1e5]))
                 value, error = out[0], out[1]
                 error = np.sqrt(np.diag(error))
                 if error[1] > 2e1:  # todo tweak
@@ -111,7 +137,7 @@ class AutoTemp:
                     raise RuntimeError
                 print(f"\rTemp {temp:.3g}, peak at {value[1]:.6g} pm {error[1]:.2g} Hz", end='')
             except RuntimeError:
-                f = self.freqs[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])]
+                f = freqs[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])]
                 d = data[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])]
                 value = [0, f[np.argmax(d)]]
                 error = [0, 5 * 2]
@@ -125,11 +151,12 @@ class AutoTemp:
         print(f"Or {total_t // (60 * 60)}h {(total_t % (60 * 60)) // 60}m {total_t % 60:.4g}s")
         resave_auto(save_path=self.save_folder_path, sample_name=self.sample_name, method="P")
 
-    def auto_temp_sweep(self, freq=None, freqstep=5, **kwargs):
-        if freq is None:
-            freq = [50, 5000]
+    def auto_temp_sweep(self, bounds=None, freqstep=5, **kwargs):
+        if bounds is None:
+            bounds = [50, 5000]
         required_temps, up = self.required_temps_get(**kwargs)
-        freqs = np.sort(np.linspace(start=freq[0], stop=freq[-1], num=int(1 + abs(freq[-1] - freq[0]) / freqstep)))
+        freqs = np.sort(np.linspace(start=bounds[0], stop=bounds[-1],
+                                    num=int(1 + abs(bounds[-1] - bounds[0]) / freqstep)))
         data_list = np.ones([len(freqs), len(required_temps)]) * np.nan
         # temps = np.ones([len(required_temps)]) * np.nan
 
@@ -155,8 +182,8 @@ class AutoTemp:
 
             # fit
             try:
-                out = curve_fit(f=lorentzian, xdata=freqs, ydata=data, bounds=([0, freq[0], 0, 0],
-                                                                               [1e4, freq[-1], 2, 1e4]))
+                out = curve_fit(f=lorentzian, xdata=freqs, ydata=data, bounds=([0, bounds[0], 0, 0],
+                                                                               [1e5, bounds[-1], 2, 1e5]))
                 value, error = out[0], out[1]
                 error = np.sqrt(np.diag(error))
                 if error[1] > 2e1:  # todo tweak
@@ -217,12 +244,14 @@ class AutoTemp:
         print(f"That took {time.time() - overall_start:.4g} seconds")
         resave_auto(save_path=self.save_folder_path, sample_name=self.sample_name, method="A")
 
-    def measure_pulse(self, delay):  # returns response to each frequency and the average temperature during the measurement
-        self.sig_gen.write("OUTPut ON")
-        data_list = np.ones([len(self.freqs), self.runs]) * np.nan
-        temps = np.ones([self.runs]) * np.nan
+    def measure_pulse(self, freqs, delay, sleep_time, num):
+        # returns response to each frequency and the average temperature during the measurement
 
-        for i in range(self.runs + 1):
+        runs = int(33)
+        self.sig_gen.write("OUTPut ON")
+        data_list = np.ones([len(freqs), runs]) * np.nan
+
+        for i in range(runs + 1):
             complete = False
             while not complete:
                 # reset signal generator output to get to a known timing
@@ -233,22 +262,20 @@ class AutoTemp:
                     # discount the pulse and everything before it
                     response = np.where(range(len(signal)) > np.argmax(np.abs(signal)) + delay, signal, 0)
                     # process and store
-                    data = np.abs(np.fft.fft(response - np.mean(response))[1:int(self.num / 2)])
-                    data_list[:, i - 1] = data
-                    temps[i - 1] = np.mean(temp)
-                if self.sleep_time - (time.time() - start) > 1e-3:
-                    time.sleep(self.sleep_time - (time.time() - start))  # wait for next cycle
+                    data_list[:, i - 1] = np.abs(np.fft.fft(response - np.mean(response))[1:int(num / 2)])
+                if sleep_time - (time.time() - start) > 1e-3:
+                    time.sleep(sleep_time - (time.time() - start))  # wait for next cycle
                 else:
                     # wait for the cycle after the next cycle
                     self.sig_gen.write(f'APPLy:PULSe {10}, MAX')
                     self.sig_gen.write(f'APPLy:PULSe {1 / self.t}, MAX')
-                    time.sleep(self.sleep_time)
-                # read the raw microphone signal & temperature voltages
-                signal, temp = self.task.read(self.num)
+                    time.sleep(sleep_time)
+                # read the microphone signal
+                signal = self.task.read(num)
                 if np.argmax(np.abs(signal)) < len(signal) / 3:
                     complete = True
         self.sig_gen.write("OUTPut OFF")
-        return np.nanmean(data_list, 1), temp_get(np.nanmean(temps))
+        return np.nanmean(data_list, 1)
 
     def measure_sweep(self, freqs):  # returns response to each frequency and the average temperature during measurement
         self.sig_gen.write("OUTPut ON")
@@ -336,12 +363,12 @@ class AutoTemp:
                 temp_start = input("start temp:")
 
         # getting correct starting point to make intervals nice
-        if not np.isclose(temp_start % temp_step, 0):
+        if not np.isclose((temp_start - temp_stop) % temp_step, 0):
             if temp_start < temp_stop:
                 temp_start = temp_start - temp_start % temp_step
             else:
                 temp_start = temp_start + (temp_step - temp_start % temp_step)
-        print(f"start temp is {temp_start:.4g}")
+        print(f"start temp is {temp_start:.4g}, stop temp is {temp_stop:.4g}, step is {temp_step:.4g}")
         print("starting...", end='')
 
         # if temp_start == temp_stop:

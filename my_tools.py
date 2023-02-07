@@ -45,7 +45,7 @@ def resave_output(method=None, save_path="outputs", temperature=None, sample_nam
             np.loadtxt(f"{save_path}/{fname}.txt")
         except FileNotFoundError:
             print(f"\rCopying to file name '{fname}.txt' and sorting by frequency", end='')
-            np.savetxt(f"{save_path}/{fname}.txt", a[np.argsort(a, axis=0)[:, 0]], fmt='%.6g')
+            np.savetxt(f"{save_path}/{fname}.txt", a[np.argsort(a, axis=0)[:, 0]], fmt='%.4g')
             return f"{save_path}/{fname}.txt"
         fname = fname + "_"
 
