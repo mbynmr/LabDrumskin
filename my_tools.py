@@ -50,7 +50,7 @@ def resave_output(method=None, save_path="outputs", temperature=None, sample_nam
         fname = fname + "_"
 
 
-def resave_auto(save_path="outputs", sample_name=None, method=None):
+def resave_auto(save_path="outputs", sample_name=None, method=None, manual=False):
     end_time = time.localtime()[0:5]
     # saves output.txt under another name
     if sample_name is None:
@@ -60,12 +60,16 @@ def resave_auto(save_path="outputs", sample_name=None, method=None):
     if save_path == "outputs":
         save_path = input("Write the path to the folder you want to save in (can be 'outputs')")
 
-    # add some test details to the file name
-    fname = '_'.join([str(e).zfill(2) for e in end_time]) + f"_T{method}_{sample_name}.txt"
+    if not manual:
+        # add some test details to the file name
+        fname = '_'.join([str(e).zfill(2) for e in end_time]) + f"_T{method}_{sample_name}.txt"
+        print(f"Copying 'autotemp.txt' to file name '{fname}'")
+        np.savetxt(f"{save_path}/{fname}", np.loadtxt(f"outputs/autotemp.txt"), fmt='%.6g')
+        return f"{save_path}/{fname}"
 
-    print(f"Copying 'autotemp.txt' to file name '{fname}'")
-    np.savetxt(f"{save_path}/{fname}", np.loadtxt(f"outputs/autotemp.txt"), fmt='%.6g')
-    return f"{save_path}/{fname}"
+    fname = '_'.join([str(e).zfill(2) for e in end_time]) + f"_T{method}m_{sample_name}.txt"
+    print(f"Copying 'manual.txt' to file name '{fname}'")
+    np.savetxt(f"{save_path}/{fname}", np.loadtxt(f"outputs/manual.txt"), fmt='%.6g')
 
 
 def toggle_plot(fig):

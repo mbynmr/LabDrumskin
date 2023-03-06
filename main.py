@@ -1,27 +1,27 @@
-import numpy as np
-
 from measurement import measure_sweep, measure_pulse_decay, measure_adaptive
 from automation import AutoTemp
 from fitting import fit
 from my_tools import resave_output, resave_auto
-from aggregation import aggregate, colourplot
+from aggregation import aggregate, colourplot, manual_peak
 
 
 def main():
     method = "none"
     save_path = r"C:\Users\mbynmr\OneDrive - The University of Nottingham\Documents" + \
-                r"\Shared - Mechanical Vibrations of Ultrathin Films\Lab\data\PDMS"
+                r"\Shared - Mechanical Vibrations of Ultrathin Films\Lab\data\PIM"
     dev_signal = "Dev2/ai0"
     dev_temp = "Dev2/ai1"
     method = "agg"
-    # method = "S"
+    # method = "chooser"
+    method = "S"
     # method = "A"
     # method = "P"
     # method = "AutoTemp_" + method
-    # method = "other_" + method
+    # method = "other_" + method'
+
     match method.split("_")[0]:
         case "S":
-            measure_sweep(freq=[50, 20000], freqstep=25, t=0.2, vpp=1, devchan=dev_signal)
+            measure_sweep(freq=[50, 20000], freqstep=50, t=0.2, vpp=10, devchan=dev_signal)
             output_file = resave_output(method="S", save_path=save_path)
             fit("outputs/output.txt", [0, 1])
         case "A":
@@ -31,7 +31,7 @@ def main():
         case "P":
             measure_pulse_decay(dev_signal, runs=33, delay=10)
             output_file = resave_output(method="P", save_path=save_path)
-            fit("outputs/output.txt", [0.2, 0.8])
+            fit("outputs/output.txt", [0.05, 1])
         case "AutoTemp":
             at = AutoTemp(save_folder_path=save_path + r"\AutoTemp", dev_signal=dev_signal, vpp=10, dev_temp=dev_temp)
             bounds = [float(input("lower freq:")), float(input("upper freq:"))]
@@ -48,7 +48,9 @@ def main():
                     at.calibrate()
             at.close()
         case "agg":
-            aggregate(a_or_s='s')
+            aggregate()
+        case "chooser":
+            manual_peak(save_path=save_path + r"\AutoTemp", cutoff=[0.45, 0.6])
         case _:
             resave_auto(save_path=save_path + r"\AutoTemp")
             # colourplot()
