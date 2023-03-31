@@ -9,8 +9,12 @@ def main():
     method = "none"
     save_path = r"C:\Users\mbynmr\OneDrive - The University of Nottingham\Documents" + \
                 r"\Shared - Mechanical Vibrations of Ultrathin Films\Lab\data\PIM"
-    dev_signal = "Dev2/ai0"
+    # dev2 is blue and is the original setup
+    dev_sign = "Dev2/ai0"
     dev_temp = "Dev2/ai1"
+    # dev1 is cream and is the new setup
+    # dev_sign = "Dev1/ai0"
+    # dev_temp = "Dev1/ai1"
     method = "agg"
     # method = "chooser"
     method = "S"
@@ -21,19 +25,19 @@ def main():
 
     match method.split("_")[0]:
         case "S":
-            measure_sweep(freq=[50, 20000], freqstep=50, t=0.2, vpp=10, devchan=dev_signal)
+            measure_sweep(freq=[50, 10000], freqstep=25, t=0.2, vpp=1, devchan=dev_sign)
             output_file = resave_output(method="S", save_path=save_path)
             fit("outputs/output.txt", [0, 1])
         case "A":
-            measure_adaptive(dev_signal, vpp=5, tolerance=5, start_guess=600, deltainit=1e2, bounds=[100, 900])
+            measure_adaptive(dev_sign, vpp=5, tolerance=5, start_guess=600, deltainit=1e2, bounds=[100, 900])
             output_file = resave_output(method="A", save_path=save_path)
-            fit("outputs/output.txt", [0, 1], copy=False)
+            fit("outputs/output.txt", [0, 0.6], copy=False)
         case "P":
-            measure_pulse_decay(dev_signal, runs=33, delay=10)
+            measure_pulse_decay(dev_sign, runs=33, delay=10)
             output_file = resave_output(method="P", save_path=save_path)
-            fit("outputs/output.txt", [0.05, 1])
+            fit("outputs/output.txt", [0.05, 1.0])
         case "AutoTemp":
-            at = AutoTemp(save_folder_path=save_path + r"\AutoTemp", dev_signal=dev_signal, vpp=10, dev_temp=dev_temp)
+            at = AutoTemp(save_folder_path=save_path + r"\AutoTemp", dev_signal=dev_sign, vpp=10, dev_temp=dev_temp)
             bounds = [float(input("lower freq:")), float(input("upper freq:"))]
             match method.split("_")[-1]:
                 case "S":
@@ -50,7 +54,7 @@ def main():
         case "agg":
             aggregate()
         case "chooser":
-            manual_peak(save_path=save_path + r"\AutoTemp", cutoff=[0.45, 0.6])
+            manual_peak(save_path=save_path + r"\AutoTemp", cutoff=[0.05, 0.6])
         case _:
             resave_auto(save_path=save_path + r"\AutoTemp")
             # colourplot()

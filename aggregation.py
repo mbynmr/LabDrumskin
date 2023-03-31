@@ -7,11 +7,11 @@ from my_tools import resave_auto
 
 
 def manual_peak(save_path, cutoff):
-    temps_should_be = np.repeat(np.linspace(start=15, stop=70, num=int(1 + abs(70 - 15) / 2.5)), repeats=3)
-    start = 40
-    stop = 95
+    start = 70
+    stop = 40
     step = 2.5
     temps_all = np.linspace(start=start, stop=stop, num=int(1 + abs(start - stop) / step))
+    temps_should_be = np.repeat(np.linspace(start=start, stop=stop, num=int(1 + abs(stop - start) / 2.5)), repeats=3)
     temps = np.zeros_like(temps_all)
     peaks = np.zeros_like(temps)
 
@@ -64,7 +64,8 @@ def aggregate():
     empty = np.zeros_like(temps)
     dic = {'temps': temps}
     films = {'C21': 6, 'C22': 6, 'C23': 7, 'C24': 6, 'C25': 5.5, 'C26': 4.5, 'C27': 3, 'C28': 2, 'C29': 6, 'C30': 4,
-             'C31': 7, 'C32': 6, 'C33': 4, 'C34': 4, 'C35': 5.5, 'C36': 4.5, 'C37': 3, 'C38': 10, 'C39': 10, 'C40': 10}
+             'C31': 7, 'C32': 6, 'C33': 4, 'C34': 4, 'C35': 5.5, 'C36': 4.5, 'C37': 3, 'C38': 4, 'C39': 100, 'C40': 2,
+             'C41': 2, 'C42': 10, 'C43': 10, 'C44': 4, 'C45': 7}
 
     # folder_name = r"C:\Users\mbynmr\OneDrive - The University of Nottingham\Documents" +\
     #               r"\Shared - Mechanical Vibrations of Ultrathin Films\Lab\data\Temperature Sweeps"
@@ -86,15 +87,22 @@ def aggregate():
         film_list.append(film)
         dic[film] = data_at_temps
 
+    file_path = r"C:\Users\mbynmr\OneDrive - The University of Nottingham\Documents" +\
+                r"\Shared - Mechanical Vibrations of Ultrathin Films\Lab\data\PDMS\AutoTemp\chosen"
     # save dict to file in nice format
     all = []
     data = np.zeros([len(dic.keys()) - 1, len(temps)])
-    for i, key in enumerate(dic.keys()):
-        print(f"{key}: {dic[key]}")
-        if key != 'temps':
-            data[i - 1, :] = dic[key]
-            all.append(films[film_list[i - 1]])
-    np.savetxt("outputs/data.txt", data, fmt='%.6g')
+
+    with open(f"{file_path}/samples.txt", 'w') as cs, open(f"{file_path}/ds.txt", 'w') as ds:
+        for i, key in enumerate(dic.keys()):
+            print(f"{key}: {dic[key]}")
+            if key != 'temps':
+                all.append(films[film_list[i - 1]])
+                data[i - 1, :] = dic[key]
+                cs.writelines(f"{key}\n")
+                ds.writelines(f"{films[key]}\n")
+    # np.savetxt("outputs/data.txt", data, fmt='%.6g')
+    np.savetxt(f"{file_path}/data.txt", data, fmt='%.6g')
     print(all)
 
 
