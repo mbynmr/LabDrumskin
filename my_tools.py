@@ -46,6 +46,8 @@ def resave_output(method=None, save_path="outputs", temperature=None, sample_nam
     # a[np.argsort(a, axis=0)[:, 0]] sorts by frequency (or whatever is in column 0)!
 
     print(f"\rCopying to file name '{fname}.txt' and sorting by frequency", end='')
+    # save_path = "C:/Users/mbynmr/OneDrive - The University of Nottingham/Documents/Shared - Mechanical Vibrations of Ultrathin Films/Lab/data/PIM/6 percent/auto"
+    # np.savetxt(f"{save_path}/{fname}.txt", a[np.argsort(a, axis=0)[:, 0]], fmt='%.4g')
     np.savetxt(f"{save_path}/{fname}.txt", a[np.argsort(a, axis=0)[:, 0]], fmt='%.4g')
     # while True:
     #     try:

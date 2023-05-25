@@ -38,7 +38,8 @@ def fit(file_name_and_path, cutoff=None, copy=True):
     x = data[:, 0]
     y = data[:, 1]
 
-    plt.plot(x, y, label="Data")
+    if copy:
+        plt.plot(x, y, label="Data")
     # values = fit_fast(x, y)[1]
     out = curve_fit(f=lorentzian, xdata=x, ydata=y, bounds=([0, 50, 0, 0], [1e5, 5e3, 2, 1e5]))
     # my interpreter is complaining that there are too many values to unpack unless I unpack separately like this
@@ -51,14 +52,16 @@ def fit(file_name_and_path, cutoff=None, copy=True):
         x0str = f"{values[1]:.{int(len(str(values[1]).split('.')[0]) + len(f'{errors[1]:.1g}'.split('.')[1]))}g}"
     except IndexError:
         x0str = f"{values[1]:.5g}"
-    print(f"\nx0 = " + x0str + f"\nx0std = {errors[1]:.1g}")
-    print(f"fmax = {x[np.argmax(y)]:.5g}")
     if copy:
+        print(f"\nx0 = " + x0str + f"\nx0std = {errors[1]:.1g}")
+        print(f"fmax = {x[np.argmax(y)]:.5g}")
         copy2clip(x0str)
+    else:
+        return values[1], errors[1]
     fity = lorentzian(x, *values)
     plt.plot(x, fity, label="Lorentzian Fit")
-    half = plt.ylim()[1] / 2
-    plt.plot(x, half + y - fity, label="Difference")
+    # half = plt.ylim()[1] / 2
+    # plt.plot(x, half + y - fity, label="Difference")
     # areadiff = np.zeros_like(x)
     # w = 5  # choose a width value
     # for i, ix in enumerate(x):
@@ -69,7 +72,7 @@ def fit(file_name_and_path, cutoff=None, copy=True):
     # if w != 0:
     #     areadiff = areadiff / (w * (x[1] - x[0]))  # "normalises" to be on a similar scale to normal differences
     # plt.plot(x, half + areadiff, label="Local Area Difference")
-    plt.plot([min(x), max(x)], [half, half], 'k--', label="_Zero line")
+    # plt.plot([min(x), max(x)], [half, half], 'k--', label="_Zero line")
     plt.legend()
     plt.xlabel("Frequency / Hz")
     plt.ylabel("Response RMS / V")

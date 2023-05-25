@@ -10,6 +10,7 @@ from my_tools import resave_output, resave_auto, ax_lims
 from fitting import lorentzian
 from IO_setup import set_up_signal_generator_pulse  # , set_up_signal_generator_sine
 # from measurement import measure, measure_adaptive, measure_pulse_decay
+from aggregatestuff import resave
 
 
 def temp_get(voltage):  # processes an array of voltages to return the corresponding array of temps (can be len = 1)
@@ -78,6 +79,79 @@ class AutoTemp:
         self.sig_gen = set_up_signal_generator_pulse()
         self.vpp = vpp
         self.sig_gen.write("OUTPut OFF")
+
+    def auto_pulse(self, bounds=None, delay=10, time_between=30, repeats=300, **kwargs):
+        if bounds is None:
+            bounds = [1e3, 4e3]
+        cutoff = np.divide(bounds, 10e3)
+        repeats = int(repeats)
+        if repeats < 2:
+            repeats = 2
+
+        sleep_time = 0.135
+        # times = np.arange(start=0, stop=self.t, step=(1 / rate))
+
+        # setting up frequency variables
+        num = int(np.ceil(self.rate * self.t))  # number of samples to measure
+        min_freq = 1 / self.t
+        max_freq = self.rate / 2  # = (num / 2) / t  # aka Nyquist frequency
+        # self.num_freqs = (self.max_freq - 0) / self.min_freq
+        freqs = np.linspace(start=min_freq, stop=max_freq, num=int((num / 2) - 1), endpoint=True)
+        data_list = np.ones([len(freqs), repeats]) * np.nan
+
+        self.task.close()
+        self.task, num = set_up_daq(mode='single', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)
+        with open("outputs/autotemp.txt", "w") as autotemp:  # reset the file
+            pass
+
+        overall_start = time.time()
+        for i in range(repeats):
+            data = self.measure_pulse(freqs=freqs, delay=delay, sleep_time=sleep_time, num=num)
+
+            # data/file management
+            data_list[:, i] = data
+            arr = np.zeros([len(data), 2])
+            arr[:, 0] = freqs
+            arr[:, 1] = data
+            np.savetxt("outputs/output.txt", arr)
+            resave_output(
+                method=f"TP{str(i).zfill(len(str(repeats - 1)))}",
+                save_path=self.save_folder_path + r"\Spectra", temperature="T",
+                sample_name=self.sample_name)
+
+            # fit
+            try:
+                out = curve_fit(f=lorentzian,
+                                xdata=freqs[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])],
+                                ydata=data[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])],
+                                bounds=([0, bounds[0], 0, 0], [1e5, bounds[1], 2, 1e5]))
+                value, error = out[0], out[1]
+                error = np.sqrt(np.diag(error))
+                if error[1] > 2e1:  # todo tweak
+                    # print("curve_fit returned a value with too low confidence")
+                    raise RuntimeError
+                print(f"\rPeak at {value[1]:.6g} pm {error[1]:.2g} Hz", end='')
+            except RuntimeError:
+                f = freqs[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])]
+                d = data[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])]
+                value = [0, f[np.argmax(d)]]
+                error = [0, 5 * 2]
+                # print(f"The curve_fit failed. Using fmax: {value[1]:.6g} Hz and error will be {error[1]:.2g} Hz")
+                print(f"\rPeak at {value[1]:.6g} pm {error[1]:.2g} Hz - curve_fit failed", end='')
+            with open("outputs/autotemp.txt", "a") as autotemp:
+                autotemp.write(f"{00:.6g} {value[1]:.6g} {error[1]:.6g}\n")
+
+            sleep = (time.time() - overall_start) - time_between * (i + 1)
+            if sleep > 0:
+                time.sleep(sleep)
+
+        total_t = time.time() - overall_start
+        print(f"\rThat took {total_t:.6g} seconds")
+        print(f"Or {total_t // (60 * 60)}h {(total_t % (60 * 60)) // 60}m {total_t % 60:.4g}s")
+
+        fname = '_'.join([str(e).zfill(2) for e in time.localtime()[0:5]]) + f"_TP_{self.sample_name}.txt"
+        # np.savetxt(self.save_folder_path + "/" + fname, np.loadtxt(f"outputs/autotemp.txt"))
+        resave(self.save_folder_path, name=fname)
 
     def auto_temp_pulse(self, bounds=None, delay=20, **kwargs):
         if bounds is None:
