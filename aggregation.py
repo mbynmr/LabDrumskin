@@ -2,11 +2,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tkinter as tk
 from tkinter import filedialog
+import os
+from tqdm import tqdm
 
 from my_tools import resave_auto
 
 
-def manual_peak(save_path, cutoff):
+def manual_peak(save_path, cutoff, file_name=None):
     start = 70
     stop = 40
     step = 2.5
@@ -22,7 +24,8 @@ def manual_peak(save_path, cutoff):
         root.withdraw()
         print(f"\rit {str(len(temps_should_be) - 1 - (3 * i + 1)).zfill(len(str(len(temps_all))))}, temp should be {t}",
               end='')
-        file_name = filedialog.askopenfilename()
+        if file_name is None:
+            file_name = filedialog.askopenfilename()
         # sample = file_name.split('.txt')[-1].split('_')[-2]
         temp = file_name.split('/')[-1].split('.txt')[0].split('_')[-1]
         temps[i] = temp
@@ -52,6 +55,70 @@ def manual_peak(save_path, cutoff):
     np.savetxt("outputs/manual.txt", data, fmt='%.6g')
     print("\ndone!")
     resave_auto(save_path=save_path, manual=True)
+
+
+def manual_peak_auto(save_path, cutoff, sample=None):
+    if sample is None:
+        sample = input("enter sample name you are looking at plz:")
+    spectra_path = save_path + r"\Spectra"
+
+    files = os.listdir(spectra_path)
+    files.sort()
+    data = np.zeros([len(files), 4])
+    # for Veusz (not zero indexed D: oh noes)
+    # datacol1 = time
+    # datacol2 = frequency peak value
+    # datacol3 = error in frequency
+    # datacol4 = temperature
+
+    for i, file in tqdm(enumerate(files), total=len(files)):
+        # if i % 10 != 0:  # todo remove this for a big run plz
+        #     continue
+        # 2023_06_22_12_42_26_TP211_PSY2_4_81.12.txt
+        sample_name = file.split('.txt')[0].split('_TP')[-1].split('_')[1:-1]  # sample name from the file name
+        sample_name = "_".join(sample_name)
+        if sample_name != sample:
+            continue
+        method = file.split("_T")[1][0]
+
+        s = file.split("_T")[0].split("_")
+        t = float(s[2]) * 60 * 60 * 24
+        t += float(s[3]) * 60 * 60
+        t += float(s[4]) * 60
+        try:
+            t += float(s[5])
+        except IndexError:  # old files don't have seconds and throw up this error
+            pass
+
+        xy = np.loadtxt(spectra_path + "/" + file)
+        xy = xy[int(len(xy[:, 0]) * cutoff[0]):int(len(xy[:, 0]) * cutoff[1]), ...]
+        fig, ax = plt.subplots()  # figsize=(16, 9)
+        plt.get_current_fig_manager().full_screen_toggle()
+        ax.plot(xy[:, 0], xy[:, 1], '.', picker=10)
+        fig.canvas.callbacks.connect('pick_event', on_pick)
+        plt.draw()
+        with open("outputs/manual.txt", 'w') as m:
+            m.writelines(f"{-1} {-1}")
+        while np.loadtxt("outputs/manual.txt")[-1] == -1:
+            plt.waitforbuttonpress()
+
+        data[i, 0] = t
+        data[i, 1] = np.loadtxt("outputs/manual.txt")[0]
+        data[i, 2] = 10  # todo error in Hz
+        try:
+            data[i, 3] = float(file.split('.txt')[0].split('_')[-1])  # temperature from the file name
+        except ValueError:
+            data[i, 3] = -1
+        # print(data[i, ...])
+        plt.close(fig)
+
+    # data = data[np.argwhere(data[:, 2] != 0).flatten(), ...]
+    data = data[~np.all(data == 0, axis=1)]
+    # data.sort(axis=0)
+    data[:, 0] = data[:, 0] - data[0, 0]
+    np.savetxt("outputs/manual.txt", data, fmt='%.6g')
+    print("\ndone!")
+    resave_auto(save_path=save_path, manual=True, sample_name=sample, method=method)
 
 
 def on_pick(event):

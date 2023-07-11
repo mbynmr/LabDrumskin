@@ -75,14 +75,21 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="
                     indexes = data_list.nonzero()
                     line_all.set_xdata(freqs[indexes])
                     line_all.set_ydata(data_list[indexes])
-                    if i >= int(len(freqs) * 0.75):
-                        if i == int(len(freqs) * 0.75):
+                    if i >= int(len(freqs) * 0.9):
+                        if i == int(len(freqs) * 0.9):
                             # plot a fit line
                             line_all_fit, = ax_all.plot([0, 0], [0, 0], label='Lorentzian fit')
                             ax_all.legend()
                         fity, values = fit_fast(freqs[indexes], data_list[indexes])
                         line_all_fit.set_xdata(freqs[indexes])
                         line_all_fit.set_ydata(fity)
+
+                        # raw = np.zeros([len(signal), 2])
+                        # raw[:, 0] = np.linspace(0, 0.2, num=len(signal))
+                        # raw[:, 1] = signal
+                        # # raw[:, 2] = np.sin(1e3 / (2 * np.pi) * np.linspace(0, 0.2, num=len(signal)))
+                        # np.savetxt("outputs/raw.txt", raw, fmt='%.4g')
+
                         ax_all.set_title(f"Response with fit: gamma={values[0]:.3g}, x0={values[1]:.4g}, "
                                          f"c={values[2]:.3g}, a={values[3]:.3g}")
                     ax_all.set_ylim((0, ax_lims(data_list[indexes])[1]))
@@ -147,7 +154,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20):
         task.ai_channels.add_ai_voltage_chan(devchan, min_val=-10.0, max_val=10.0)
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         data_list = np.ones([len(freqs), runs]) * np.nan
-        response = data = y = np.zeros_like(len(freqs))  # make room in memory
+        # response = data = y = np.zeros_like(freqs)  # make room in memory
         for i in tqdm(range(runs + 1), total=runs + 1, ncols=100):
             complete = False
             while not complete:
@@ -158,7 +165,14 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20):
                 start = time.time()
                 if i > 0:  # do processing of previous signal
                     # discount the pulse and everything before it
+
+                    # todo changed this
+                    # # response = np.where(range(len(signal)) > np.argmax(np.convolve(np.abs(signal), np.ones(20), "same")) + delay, signal, 0)
+                    # response = np.zeros_like(signal)
+                    # signal = signal[np.argmax(np.convolve(np.abs(signal), np.ones(20), "same")) + delay:]
+                    # response[len(signal):] = signal
                     response = np.where(range(len(signal)) > np.argmax(np.abs(signal)) + delay, signal, 0)
+
                     # process and store
                     data = np.abs(np.fft.fft(response - np.mean(response))[1:int(num / 2)])
                     data_list[:, i - 1] = data
@@ -166,6 +180,12 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20):
                     # update visual plot of data
                     line_current.set_ydata(response)
                     line_all_current.set_ydata(data)
+
+                    raw = np.zeros([len(signal), 2])
+                    raw[:, 0] = np.linspace(0, 0.2, num=len(signal))
+                    raw[:, 1] = signal
+                    np.savetxt("outputs/raw.txt", raw, fmt='%.4g')
+
                     # line_all_min.set_ydata(np.nanmin(data_list, 1))
                     # line_all_max.set_ydata(np.nanmax(data_list, 1))
                     y = np.nanmean(data_list, 1)

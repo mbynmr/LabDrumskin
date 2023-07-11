@@ -28,15 +28,17 @@ def ax_lims(data):
 def resave_output(method=None, save_path="outputs", temperature=None, sample_name=None):
     # saves output.txt under another name
 
-    end_time = time.localtime()[0:5]
+    end_time = time.localtime()[0:6]
 
     # load (copy) straight away to avoid conflicts and things
     a = np.loadtxt(f"outputs/output.txt")
 
     if temperature is None:
         temperature = input("Temperature ('rt', '40', etc.):")
+        # temperature = 20
     if sample_name is None:
         sample_name = input("Sample name ('C0', 'CF4', etc.):")
+        # sample_name = "PSY2_J_" + f"{np.random.random():.6g}".split(".")[1]
     if save_path == "outputs":
         save_path = input("Write the path to the folder you want to save in (can be 'outputs')")
 
@@ -49,6 +51,7 @@ def resave_output(method=None, save_path="outputs", temperature=None, sample_nam
     # save_path = "C:/Users/mbynmr/OneDrive - The University of Nottingham/Documents/Shared - Mechanical Vibrations of Ultrathin Films/Lab/data/PIM/6 percent/auto"
     # np.savetxt(f"{save_path}/{fname}.txt", a[np.argsort(a, axis=0)[:, 0]], fmt='%.4g')
     np.savetxt(f"{save_path}/{fname}.txt", a[np.argsort(a, axis=0)[:, 0]], fmt='%.4g')
+    copy2clip(fname)
     # while True:
     #     try:
     #         np.loadtxt(f"{save_path}/{fname}.txt")
@@ -75,15 +78,14 @@ def resave_auto(save_path="outputs", sample_name=None, method=None, manual=False
     if method is None:
         method = input("Method (S, A ,P):")
     if save_path == "outputs":
-        save_path = input("Write the path to the folder you want to save in (can be 'outputs')")
+        save_path = input("Write the path to the folder you want to save in (can be 'outputs' or blank)")
 
+    # add some test details to the file name
     if not manual:
-        # add some test details to the file name
         fname = '_'.join([str(e).zfill(2) for e in end_time]) + f"_T{method}_{sample_name}.txt"
         print(f"Copying 'autotemp.txt' to file name '{fname}'")
         np.savetxt(f"{save_path}/{fname}", a, fmt='%.6g')
         return f"{save_path}/{fname}"
-
     fname = '_'.join([str(e).zfill(2) for e in end_time]) + f"_T{method}m_{sample_name}.txt"
     print(f"Copying 'manual.txt' to file name '{fname}'")
     np.savetxt(f"{save_path}/{fname}", m, fmt='%.6g')
@@ -97,5 +99,29 @@ def toggle_plot(fig):
 
 def copy2clip(txt):
     # credit: https://stackoverflow.com/a/41029935
-    print(f"Copying {txt} to clipboard")
+    print(f"\nCopying {txt} to clipboard")
     return check_call('echo ' + txt.strip() + '|clip', shell=True)
+
+
+def temp_get(voltage):  # processes an array of voltages to return the corresponding array of temps (can be len = 1)
+    return (100 / (-1.600 - 1.255)) * (np.asarray(voltage) - 1.255)
+
+
+def temp_get_old(voltage):  # processes an array of voltages to return the corresponding array of temps (can be len = 1)
+    zero = 0.055  # is probably 1 degree, and is from 0.051 to 0.055 pretty much
+    hundred = -3.44
+    # fifty = -1.62  # approximately
+    # eighty_five = -2.88  # approximately
+    # ninety_six = -3.24
+    # temp = (100 / (hundred - zero)) * voltage - zero
+    return (100 / (hundred - zero)) * (np.asarray(voltage) - zero)
+
+
+def convert_temp_to_tempstr(temp):
+    # works for any temp from 10.00 to 99.99, not sure about any others though!
+    tempstr = f"{temp:.4g}"
+    if len(tempstr.split(".")) == 1:
+        return tempstr + ".00"
+    elif len(tempstr) < 5:
+        return tempstr + "0"
+    return tempstr
