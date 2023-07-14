@@ -37,13 +37,16 @@ class AutoTemp:
     files will be saved for each temperature that is measured, and a final file that saves all the peaks and their temps
     """
 
-    def __init__(self, save_folder_path, dev_signal, dev_temp, vpp=5, sample_name=None):
+    def __init__(self, save_folder_path, dev_signal, dev_temp, vpp=5, sample_name=None, bounds=None):
         self.save_folder_path = save_folder_path
         if sample_name is None:
             self.sample_name = input("Sample name:")
         else:
             self.sample_name = sample_name
-        self.bounds = [float(input("lower freq:")), float(input("upper freq:"))]
+        if bounds is None:
+            self.bounds = [float(input("lower freq:")), float(input("upper freq:"))]
+        else:
+            self.bounds = bounds  # todo check this works well
 
         self.dev_signal = dev_signal
         self.dev_temp = dev_temp
