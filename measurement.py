@@ -182,7 +182,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20):
                     line_all_current.set_ydata(data)
 
                     raw = np.zeros([len(signal), 2])
-                    raw[:, 0] = np.linspace(0, 0.2, num=len(signal))
+                    raw[:, 0] = np.linspace(0, t, num=len(signal))
                     raw[:, 1] = signal
                     np.savetxt("outputs/raw.txt", raw, fmt='%.4g')
 
@@ -195,7 +195,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20):
                     fig.canvas.flush_events()
                 # elif i == 0:
                 #     time.sleep(sleep_time)
-                if sleep_time - (time.time() - start) > 1e-3:
+                if sleep_time - (time.time() - start) > 1e-3 + 0.2e-3:
                     time.sleep(sleep_time - (time.time() - start))  # wait for next cycle
                 else:
                     # wait for the cycle after the next cycle

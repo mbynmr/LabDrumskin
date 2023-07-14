@@ -8,7 +8,9 @@ from fitting import fit, find_peaks
 
 def main():
     save_path = r"C:\Users\mbynmr\OneDrive - The University of Nottingham\Documents" + \
-                r"\Shared - Mechanical Vibrations of Ultrathin Films\Lab\data\PSY/2 percent"
+                r"\Shared - Mechanical Vibrations of Ultrathin Films\Lab\data\PDMS\new piezos"
+    # save_path = r"C:\Users\mbynmr\OneDrive - The University of Nottingham\Documents" + \
+    #             r"\Shared - Mechanical Vibrations of Ultrathin Films\Lab\data\PSY/1.5 percent"
     # dev2 is blue and is the small blue (1 layer breadboard) setup
     dev_sign = "Dev2/ai0"
     dev_temp = "Dev2/ai1"
@@ -16,9 +18,9 @@ def main():
     # dev_sign = "Dev1/ai0"
     # dev_temp = "Dev1/ai1"
     # method = "agg"
-    # method = "chooser"
-    method = "A"
-    # method = "S"  # sweep
+    method = "chooser"
+    # method = "A"
+    #method = "S"  # sweep
     # shortcut to run is F5 or press the green button
     method = "P"  # pulse
     # method = "AutoTemp_" + method
@@ -27,16 +29,16 @@ def main():
     # find_peaks()
     match method.split("_")[0]:
         case "S":
-            measure_sweep(freq=[50, 5000], freqstep=5, t=0.2, vpp=5, devchan=dev_sign)
-            resave_output(method="S", save_path=save_path)
+            measure_sweep(freq=[50, 3600], freqstep=5, t=0.2, vpp=10, devchan=dev_sign)
+            resave_output(method="S", save_path=save_path, copy=True)
             fit("outputs/output.txt", [0.05, 0.5])
         case "A":
             measure_adaptive(dev_sign, vpp=5, tolerance=5, start_guess=600, deltainit=1e2, bounds=[100, 900])
-            resave_output(method="A", save_path=save_path)
+            resave_output(method="A", save_path=save_path, copy=True)
             fit("outputs/output.txt", [0.05, 0.5])
         case "P":
             measure_pulse_decay(dev_sign, runs=100, delay=10)  # runs is how many pulses to average over
-            resave_output(method="P", save_path=save_path)
+            resave_output(method="P", save_path=save_path, copy=True)
             fit("outputs/output.txt", [0.05, 0.5])
         case "AutoTemp":
             at = AutoTemp(save_folder_path=save_path + r"\AutoTemp", dev_signal=dev_sign, vpp=10, dev_temp=dev_temp)

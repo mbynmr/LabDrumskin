@@ -25,7 +25,7 @@ def ax_lims(data):
             round_sig_figs(max(data) + diff, 2, 'c'))
 
 
-def resave_output(method=None, save_path="outputs", temperature=None, sample_name=None):
+def resave_output(method=None, save_path="outputs", temperature=None, sample_name=None, copy=False):
     # saves output.txt under another name
 
     end_time = time.localtime()[0:6]
@@ -51,7 +51,9 @@ def resave_output(method=None, save_path="outputs", temperature=None, sample_nam
     # save_path = "C:/Users/mbynmr/OneDrive - The University of Nottingham/Documents/Shared - Mechanical Vibrations of Ultrathin Films/Lab/data/PIM/6 percent/auto"
     # np.savetxt(f"{save_path}/{fname}.txt", a[np.argsort(a, axis=0)[:, 0]], fmt='%.4g')
     np.savetxt(f"{save_path}/{fname}.txt", a[np.argsort(a, axis=0)[:, 0]], fmt='%.4g')
-    copy2clip(fname)
+    if copy:
+        print("\n", end='')
+        copy2clip(fname)
     # while True:
     #     try:
     #         np.loadtxt(f"{save_path}/{fname}.txt")
@@ -99,7 +101,7 @@ def toggle_plot(fig):
 
 def copy2clip(txt):
     # credit: https://stackoverflow.com/a/41029935
-    print(f"\nCopying {txt} to clipboard")
+    print(f"Copying {txt} to clipboard")
     return check_call('echo ' + txt.strip() + '|clip', shell=True)
 
 
