@@ -41,8 +41,8 @@ class Main:
         self.widgets()
 
         # print command redirect
-        self.print_box = scrolledtext.ScrolledText(self.w, width=38, height=11)
-        self.print_box.place(relx=0.01, rely=0.475)
+        self.print_box = scrolledtext.ScrolledText(self.w, width=42, height=13)
+        self.print_box.place(relx=0.01, rely=0.4)
         self.writestore = sys.stdout.write  # store it for use later when closing
         sys.stdout.write = self.write  # redirect "print" to the GUI
 
@@ -79,29 +79,31 @@ class Main:
         tk.Button(self.w, text='Path', command=self.select_path).place(relx=0.88 + x, rely=0.19)
         tk.Entry(self.w, textvariable=self.t).place(relx=0.7 + x, rely=0.45)
         tk.Label(self.w, text="Measure time").place(relx=0.56 + x, rely=0.45)
-        tk.Entry(self.w, textvariable=self.boundL).place(relx=0.51 + x, rely=0.5)
+        tk.Entry(self.w, textvariable=self.boundL).place(relx=0.6 + x, rely=0.5)
         tk.Entry(self.w, textvariable=self.boundU).place(relx=0.7 + x, rely=0.5)
-        tk.Label(self.w, text="< frequency <").place(relx=0.6-0.035 + x, rely=0.5)
+        tk.Label(self.w, text="< f <").place(relx=0.645 + x, rely=0.5)
         tk.Entry(self.w, textvariable=self.runs).place(relx=0.7 + x, rely=0.6)
         tk.Label(self.w, text="Repeats (pulse)").place(relx=0.555 + x, rely=0.6)
         tk.Entry(self.w, textvariable=self.freqstep).place(relx=0.7 + x, rely=0.7)
-        tk.Label(self.w, text="Frequency step (sweep)").place(relx=0.48 + x, rely=0.7)
+        tk.Label(self.w, text="f step (sweep)").place(relx=0.55 + x, rely=0.7)
         tk.Entry(self.w, textvariable=self.vpp).place(relx=0.7 + x, rely=0.75)
         tk.Label(self.w, text="Vpp (sweep)").place(relx=0.58 + x, rely=0.75)
         tk.Entry(self.w, textvariable=self.dev_signal).place(relx=0.7 + x, rely=0.85)
         tk.Label(self.w, text="Signal device").place(relx=0.57 + x, rely=0.85)
         tk.Entry(self.w, textvariable=self.dev_temp).place(relx=0.7 + x, rely=0.9)
-        tk.Label(self.w, text="Temperature device").place(relx=0.515 + x, rely=0.9)
+        tk.Label(self.w, text="Temp device").place(relx=0.5725 + x, rely=0.9)
 
     def write(self, s):
         # todo s.split("\n")
         #  for loop over all those splits to make sure it is handled correctly
         if s != '\n':
-            if s[0:3] == '\r  ':
-                s = s[3:]
-                self.print_box.delete('end-2l', 'end-1l')
-            self.print_box.insert(tk.END,
-                                  '[' + ':'.join([str(e).zfill(2) for e in time.localtime()[3:5]]) + ']' + s + '\n')
+            if s[0:1] == '\r':
+                s = s[1:]
+                self.print_box.delete('end-2l', 'end-1l')  # todo this currently removes ANY line before, even if i=0
+                self.print_box.insert(tk.END, s + '\n')
+            else:
+                self.print_box.insert(tk.END,
+                                      '[' + ':'.join([str(e).zfill(2) for e in time.localtime()[3:5]]) + ']' + s + '\n')
             self.print_box.see("end")
 
     def select_path(self):
@@ -135,7 +137,8 @@ class Main:
         elif self.run_type.get() == "single":
             match self.method.get():
                 case 'P':
-                    measure_pulse_decay(self.dev_signal.get(), runs=self.runs.get(), delay=10, t=self.t.get())
+                    measure_pulse_decay(self.dev_signal.get(), runs=self.runs.get(), delay=10, t=self.t.get(),
+                                        printer=self)
                 case 'A':
                     measure_adaptive(self.dev_signal.get(), vpp=self.vpp.get(), tolerance=self.freqstep.get(),
                                      start_guess=600, deltainit=1e2, bounds=[self.boundL.get(), self.boundU.get()])

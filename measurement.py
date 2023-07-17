@@ -59,7 +59,7 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="
             freqs = np.linspace(freq[0], freq[1], num_freqs)
             a = np.array(freqs)
             np.random.default_rng().shuffle(a)
-            for i, f in tqdm(enumerate(freqs), total=len(freqs), ncols=100, file=printer):
+            for i, f in tqdm(enumerate(freqs), total=len(freqs), ncols=42, file=printer):
                 # set current frequency
                 sig_gen.write(f'APPLy:SINusoid {f}, {vpp}')
 
@@ -160,7 +160,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, printer=N
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         data_list = np.ones([len(freqs), runs]) * np.nan
         # response = data = y = np.zeros_like(freqs)  # make room in memory
-        for i in tqdm(range(runs + 1), total=runs + 1, ncols=100, file=printer):
+        for i in tqdm(range(runs + 1), total=runs + 1, ncols=42, file=printer):
             complete = False
             while not complete:
                 # reset signal generator output to get to a known timing
