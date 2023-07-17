@@ -5,13 +5,14 @@ import nidaqmx
 from tqdm import tqdm
 import time
 from noisyopt import minimizeCompass
+import sys
 
 from my_tools import ax_lims, copy2clip
 from fitting import fit_fast
 from IO_setup import set_up_signal_generator_sine, set_up_signal_generator_pulse
 
 
-def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="Dev1/ai0"):
+def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="Dev1/ai0", printer=None):
     """
     Measures a film by exciting a series of frequencies using sine waves then measuring the response.
     freq=[minf, maxf] is the minimim and maximum frequencies to sweep between
@@ -20,6 +21,9 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="
     """
     if freq is None:
         freq = [50, 4000]
+
+    if printer is None:
+        printer = sys.stderr
 
     sig_gen = set_up_signal_generator_sine()
 
@@ -55,7 +59,7 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="
             freqs = np.linspace(freq[0], freq[1], num_freqs)
             a = np.array(freqs)
             np.random.default_rng().shuffle(a)
-            for i, f in tqdm(enumerate(freqs), total=len(freqs), ncols=100):
+            for i, f in tqdm(enumerate(freqs), total=len(freqs), ncols=100, file=printer):
                 # set current frequency
                 sig_gen.write(f'APPLy:SINusoid {f}, {vpp}')
 
@@ -105,11 +109,13 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="
         return freqs, data_list
 
 
-def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20):
+def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, printer=None):
     """
     Measures a film by hitting it with a short pulse and measuring the response.
     freq=[minf, maxf] is the minimim and maximum frequencies to measure
     """
+    if printer is None:
+        printer = sys.stderr
 
     sig_gen = set_up_signal_generator_pulse()
 
@@ -127,7 +133,6 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20):
 
     # setting up data collection variables
     runs = int(runs)
-    t = 0.2
     sleep_time = 0.135
     rate = 20000  # 20e3
     num = int(np.ceil(rate * t))  # number of samples to measure
@@ -155,7 +160,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20):
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         data_list = np.ones([len(freqs), runs]) * np.nan
         # response = data = y = np.zeros_like(freqs)  # make room in memory
-        for i in tqdm(range(runs + 1), total=runs + 1, ncols=100):
+        for i in tqdm(range(runs + 1), total=runs + 1, ncols=100, file=printer):
             complete = False
             while not complete:
                 # reset signal generator output to get to a known timing

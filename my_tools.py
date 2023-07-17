@@ -25,7 +25,7 @@ def ax_lims(data):
             round_sig_figs(max(data) + diff, 2, 'c'))
 
 
-def resave_output(method=None, save_path="outputs", temperature=None, sample_name=None, copy=False):
+def resave_output(method=None, save_path=None, temperature=None, sample_name=None, copy=False):
     # saves output.txt under another name
 
     end_time = time.localtime()[0:6]
@@ -39,7 +39,7 @@ def resave_output(method=None, save_path="outputs", temperature=None, sample_nam
     if sample_name is None:
         sample_name = input("Sample name ('C0', 'CF4', etc.):")
         # sample_name = "PSY2_J_" + f"{np.random.random():.6g}".split(".")[1]
-    if save_path == "outputs":
+    if save_path == None:
         save_path = input("Write the path to the folder you want to save in (can be 'outputs')")
 
     # add some test details to the file name

@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import filedialog
 import os
 from tqdm import tqdm
+import sys
 
 from my_tools import resave_auto
 
@@ -57,10 +58,13 @@ def manual_peak(save_path, cutoff, file_name=None):
     resave_auto(save_path=save_path, manual=True)
 
 
-def manual_peak_auto(save_path, cutoff, sample=None):
+def manual_peak_auto(save_path, cutoff, sample=None, printer=None):
     if sample is None:
         sample = input("enter sample name you are looking at plz:")
     spectra_path = save_path + r"\Spectra"
+
+    if printer is None:
+        printer = sys.stderr
 
     files = os.listdir(spectra_path)
     files.sort()
@@ -71,7 +75,7 @@ def manual_peak_auto(save_path, cutoff, sample=None):
     # datacol3 = error in frequency
     # datacol4 = temperature
 
-    for i, file in tqdm(enumerate(files), total=len(files)):
+    for i, file in tqdm(enumerate(files), total=len(files), file=printer):
         # if i % 10 != 0:  # todo remove this for a big run plz
         #     continue
         # 2023_06_22_12_42_26_TP211_PSY2_4_81.12.txt

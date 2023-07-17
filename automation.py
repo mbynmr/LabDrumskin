@@ -37,7 +37,7 @@ class AutoTemp:
     files will be saved for each temperature that is measured, and a final file that saves all the peaks and their temps
     """
 
-    def __init__(self, save_folder_path, dev_signal, dev_temp, vpp=5, sample_name=None, bounds=None):
+    def __init__(self, save_folder_path, dev_signal, dev_temp, vpp=5, sample_name=None, bounds=None, t=None):
         self.save_folder_path = save_folder_path
         if sample_name is None:
             self.sample_name = input("Sample name:")
@@ -47,13 +47,15 @@ class AutoTemp:
             self.bounds = [float(input("lower freq:")), float(input("upper freq:"))]
         else:
             self.bounds = bounds  # todo check this works well
+        if t is None:
+            t = 0.2
 
         self.dev_signal = dev_signal
         self.dev_temp = dev_temp
 
         # setting up data collection
         self.rate = 20000  # max samples per second of the DAQ card
-        self.t = 0.2
+        self.t = t
         self.task, self.num = set_up_daq(mode='dual', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)
 
         # storage for adaptive
@@ -64,8 +66,9 @@ class AutoTemp:
         self.vpp = vpp
         self.sig_gen.write("OUTPut OFF")
 
-    def auto_pulse(self, bounds=None, delay=10, time_between=30, repeats=300, runs=33, **kwargs):
-        temp = input("Do you want temperature recordings? 'Y' for yes:")
+    def auto_pulse(self, bounds=None, delay=10, time_between=30, repeats=300, runs=33, temp=None, **kwargs):
+        if temp is None:
+            temp = input("Do you want temperature recordings? 'Y' for yes:")
         if temp == 'y' or temp == 'Y':
             temp = True
         else:
@@ -145,7 +148,7 @@ class AutoTemp:
         resave_auto(self.save_folder_path, sample_name=self.sample_name, method='P', manual=False)
         resave(self.save_folder_path, name=fname)
 
-    def auto_temp_pulse(self, delay=20, time_between=30, **kwargs):
+    def auto_temp_pulse(self, delay=20, time_between=30, runs=100, **kwargs):
         bounds = self.bounds
         cutoff = np.divide(bounds, 10e3)
 
@@ -173,7 +176,7 @@ class AutoTemp:
 
             self.task.close()
             self.task, num = set_up_daq(mode='single', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)
-            data = self.measure_pulse(freqs=freqs, delay=delay, sleep_time=sleep_time, num=num)
+            data = self.measure_pulse(freqs=freqs, delay=delay, sleep_time=sleep_time, num=num, runs=runs)
             self.task.close()
             self.task = set_up_daq(mode='dual', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)[0]
             temps[i] = (float(temp) + float(np.nanmean(temp_get(self.task.read(self.num)[1])))) / 2
