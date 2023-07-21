@@ -61,7 +61,7 @@ def manual_peak(save_path, cutoff, file_name=None):
 def manual_peak_auto(save_path, cutoff, sample=None, printer=None):
     if sample is None:
         sample = input("enter sample name you are looking at plz:")
-    spectra_path = save_path + r"\Spectra"
+    spectra_path = save_path + "/Spectra"
 
     if printer is None:
         printer = sys.stderr
@@ -75,8 +75,8 @@ def manual_peak_auto(save_path, cutoff, sample=None, printer=None):
     # datacol3 = error in frequency
     # datacol4 = temperature
 
-    for i, file in tqdm(enumerate(files), total=len(files), file=printer):
-        # if i % 10 != 0:  # todo remove this for a big run plz
+    for i, file in tqdm(enumerate(files), total=len(files), file=printer, ncols=42):
+        # if i % 10 != 0:  # remove this for a big run plz
         #     continue
         # 2023_06_22_12_42_26_TP211_PSY2_4_81.12.txt
         sample_name = file.split('.txt')[0].split('_TP')[-1].split('_')[1:-1]  # sample name from the file name

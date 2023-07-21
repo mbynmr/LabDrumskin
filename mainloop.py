@@ -2,6 +2,7 @@ import time
 import tkinter as tk
 from tkinter import filedialog, scrolledtext
 import sys
+from matplotlib.pyplot import close as matplotlibclose
 
 
 from measurement import measure_sweep, measure_pulse_decay, measure_adaptive
@@ -19,13 +20,17 @@ class Main:
 
     def __init__(self):
         # mainwindowobject is self.w
-        self.w = tk.Tk(className='Main')
+        self.w = tk.Tk(className='Piezo actuation and microphone detection')
         self.w.geometry("600x400")  # this is the worst. i hate it.
+        self.w.resizable(False, False)
 
         # set up variables that can be used in buttons
+        # self.running = tk.BooleanVar(self.w, value=False)
+        self.pause_text = tk.StringVar(self.w, value='Pause')
         self.method = tk.StringVar(self.w, value='P')
         self.run_type = tk.StringVar(self.w, value='single')
         self.fit = tk.BooleanVar(self.w, value=True)
+        self.pause = tk.BooleanVar(self.w, value=False)
         self.sample_name = tk.StringVar(self.w, value='SAMPLENAME')
         self.save_path = tk.StringVar(self.w, value='outputs')
         self.t = tk.DoubleVar(self.w, value=0.2)
@@ -51,11 +56,12 @@ class Main:
     def widgets(self):
         # some buttons
         tk.Button(self.w, text='Measure', command=self.run).place(relx=0.05, rely=0.125)
-        tk.Button(self.w, text='Pause', command=self.pause).place(relx=0.2, rely=0.075)
-        tk.Button(self.w, text='Stop', command=self.stop).place(relx=0.2, rely=0.175)
+        tk.Button(self.w, textvariable=self.pause_text, command=self.pauser).place(relx=0.2, rely=0.075)
+        # todo figure out stop functionality
+        # tk.Button(self.w, text='Stop', command=self.stop).place(relx=0.2, rely=0.175)
         tk.Button(self.w, text='Recover (save) last measurement', command=self.resave_output).place(relx=0.1, rely=0.3)
         tk.Button(self.w, text='Force save auto', command=self.resave_auto).place(relx=0.5, rely=0.3)
-        tk.Button(self.w, text='Manual peaks', command=buttonfunc).place(relx=0.7, rely=0.3)
+        tk.Button(self.w, text='Manual peaks', command=self.manual_peak).place(relx=0.7, rely=0.3)
         tk.Button(self.w, text='Close', command=self.close).place(relx=0.1, rely=0.925)
 
         # method options
@@ -85,7 +91,7 @@ class Main:
         tk.Entry(self.w, textvariable=self.runs).place(relx=0.7 + x, rely=0.6)
         tk.Label(self.w, text="Repeats (pulse)").place(relx=0.555 + x, rely=0.6)
         tk.Entry(self.w, textvariable=self.freqstep).place(relx=0.7 + x, rely=0.7)
-        tk.Label(self.w, text="f step (sweep)").place(relx=0.55 + x, rely=0.7)
+        tk.Label(self.w, text="f step (sweep)").place(relx=0.565 + x, rely=0.7)
         tk.Entry(self.w, textvariable=self.vpp).place(relx=0.7 + x, rely=0.75)
         tk.Label(self.w, text="Vpp (sweep)").place(relx=0.58 + x, rely=0.75)
         tk.Entry(self.w, textvariable=self.dev_signal).place(relx=0.7 + x, rely=0.85)
@@ -93,42 +99,34 @@ class Main:
         tk.Entry(self.w, textvariable=self.dev_temp).place(relx=0.7 + x, rely=0.9)
         tk.Label(self.w, text="Temp device").place(relx=0.5725 + x, rely=0.9)
 
-    def write(self, s):
-        # todo s.split("\n")
-        #  for loop over all those splits to make sure it is handled correctly
-        if s != '\n':
-            if s[0:1] == '\r':
-                s = s[1:]
-                self.print_box.delete('end-2l', 'end-1l')  # todo this currently removes ANY line before, even if i=0
-                self.print_box.insert(tk.END, s + '\n')
-            else:
-                self.print_box.insert(tk.END,
-                                      '[' + ':'.join([str(e).zfill(2) for e in time.localtime()[3:5]]) + ']' + s + '\n')
-            self.print_box.see("end")
-
-    def select_path(self):
-        root = tk.Tk(className='Path Selection')
-        root.withdraw()
-        self.save_path.set(filedialog.askdirectory())
-
     def stop(self):
         print("stop")
 
-    def pause(self):
-        print("pause")
+    def pauser(self):
+        self.pause.set(not self.pause.get())
+        if self.pause.get():
+            self.pause_text.set('Unpause')
+        else:
+            self.pause_text.set('Pause')
 
     def run(self):
+        # # run control
+        # if self.running.get():
+        #     matplotlibclose("all")
+        #     self.resave_output()
+        # self.running.set(True)
+
         # get inputs as they are needed and run measurements
 
         if self.run_type.get() == "autotemp":
-            at = AutoTemp(save_folder_path=self.save_path.get() + r"\AutoTemp",
+            at = AutoTemp(save_folder_path=self.save_path.get() + "/AutoTemp",
                           dev_signal=self.dev_signal.get(), vpp=self.vpp.get(), dev_temp=self.dev_temp.get(),
                           sample_name=self.sample_name.get(), bounds=[self.boundL.get(), self.boundU.get()],
                           t=self.t.get())
             match self.run_type.get():
                 case 'P':
                     at.auto_temp_pulse(delay=10, temp_step=5, temp_repeats=10, runs=self.runs.get())
-                    at.auto_pulse(delay=10, time_between=30, repeats=1, runs=self.runs.get(), temp='Y')  # todo temp
+                    # at.auto_pulse(delay=10, time_between=30, repeats=1, runs=self.runs.get(), temp='Y')  # todo temp
                 case 'A':
                     at.auto_temp_adaptive(tolerance=5, start_guess=5e2, start_delta=1e2, temp_step=2.5, temp_repeats=3)
                 case 'S':
@@ -138,13 +136,13 @@ class Main:
             match self.method.get():
                 case 'P':
                     measure_pulse_decay(self.dev_signal.get(), runs=self.runs.get(), delay=10, t=self.t.get(),
-                                        printer=self)
+                                        GUI=self)
                 case 'A':
                     measure_adaptive(self.dev_signal.get(), vpp=self.vpp.get(), tolerance=self.freqstep.get(),
                                      start_guess=600, deltainit=1e2, bounds=[self.boundL.get(), self.boundU.get()])
                 case 'S':
                     measure_sweep(freq=[self.boundL.get(), self.boundU.get()], freqstep=self.freqstep.get(),
-                                  t=self.t.get(), vpp=self.vpp.get(), devchan=self.dev_signal.get(), printer=self)
+                                  t=self.t.get(), vpp=self.vpp.get(), devchan=self.dev_signal.get(), GUI=self)
 
         # save output and fit after finishing run
         self.resave_output()
@@ -156,16 +154,42 @@ class Main:
                       temperature=20, copy=True)
 
     def resave_auto(self):
-        resave_auto(save_path=self.save_path.get() + r"\AutoTemp", sample_name=self.sample_name.get(),
+        resave_auto(save_path=self.save_path.get() + "/AutoTemp", sample_name=self.sample_name.get(),
                     method=self.method.get(), manual=False)
 
+    def manual_peak(self):
+        manual_peak_auto(save_path=self.save_path.get() + "/AutoTemp", cutoff=[0, 1], sample=self.sample_name.get())
         # # manual_peak(save_path=save_path + r"\AutoTemp", cutoff=[0.05, 0.6])
-        # manual_peak_auto(save_path=save_path + r"\AutoTemp", cutoff=[0.05, 0.25])
         # resave(save_path + r"\AutoTemp")
+
+    def select_path(self):
+        self.save_path.set(filedialog.askdirectory())
+
+    def write(self, s):
+        # s.split("\n")
+        #  for loop over all those splits to make sure it is handled correctly?
+        if s == '\n' or s == '':  # todo empty string ignore?
+            return
+        if s[0:1] == '\r':  # todo this currently deletes the last tqdm line if the next line begins with \r
+            s = s[1:]
+            last_line = self.print_box.get("end-2c linestart", "end-2c lineend")
+            if len(last_line) >= 7:
+                if not (last_line[0] == "[" and last_line[3] == ":" and last_line[6] == "]"):
+                    self.print_box.delete('end-2l', 'end-1l')  # replace previous line if it was tqdm/not a normal print
+            self.print_box.insert(tk.END, s + '\n')
+        else:
+            if s[0:1] == '\n':
+                s = s[1:]
+            self.print_box.insert(tk.END,
+                                  '[' + ':'.join([str(e).zfill(2) for e in time.localtime()[3:5]]) + ']' + s + '\n')
+        self.print_box.see(tk.END)
 
     def close(self):
         sys.stdout.write = self.writestore
+        matplotlibclose("all")
         self.w.destroy()
+        # print("Closed")
+        # quit()
 
 
 def buttonfunc():
@@ -186,7 +210,7 @@ def oldmain():
     # method = "agg"
     method = "chooser"
     # method = "A"
-    #method = "S"  # sweep
+    # method = "S"  # sweep
     # shortcut to run is F5 or press the green button
     method = "P"  # pulse
     # method = "AutoTemp_" + method

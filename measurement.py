@@ -12,7 +12,7 @@ from fitting import fit_fast
 from IO_setup import set_up_signal_generator_sine, set_up_signal_generator_pulse
 
 
-def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="Dev1/ai0", printer=None):
+def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="Dev1/ai0", GUI=None):
     """
     Measures a film by exciting a series of frequencies using sine waves then measuring the response.
     freq=[minf, maxf] is the minimim and maximum frequencies to sweep between
@@ -22,8 +22,12 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="
     if freq is None:
         freq = [50, 4000]
 
-    if printer is None:
+    if GUI is None:
         printer = sys.stderr
+        pauser = Pauser
+    else:
+        printer = GUI
+        pauser = GUI
 
     sig_gen = set_up_signal_generator_sine()
 
@@ -60,6 +64,12 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="
             a = np.array(freqs)
             np.random.default_rng().shuffle(a)
             for i, f in tqdm(enumerate(freqs), total=len(freqs), ncols=42, file=printer):
+
+                # pause control
+                if pauser.pause.get():
+                    pauser.w.wait_variable(pauser.pause)
+                    # pauser.pause.set(False)
+
                 # set current frequency
                 sig_gen.write(f'APPLy:SINusoid {f}, {vpp}')
 
@@ -109,13 +119,16 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="
         return freqs, data_list
 
 
-def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, printer=None):
+def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None):
     """
-    Measures a film by hitting it with a short pulse and measuring the response.
-    freq=[minf, maxf] is the minimim and maximum frequencies to measure
+    Measures a film by hitting it with a short pulse and measuring the response
     """
-    if printer is None:
+    if GUI is None:
         printer = sys.stderr
+        pauser = Pauser
+    else:
+        printer = GUI
+        pauser = GUI
 
     sig_gen = set_up_signal_generator_pulse()
 
@@ -163,6 +176,12 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, printer=N
         for i in tqdm(range(runs + 1), total=runs + 1, ncols=42, file=printer):
             complete = False
             while not complete:
+
+                # pause control
+                if pauser.pause.get():
+                    pauser.w.wait_variable(pauser.pause)
+                    # pauser.pause.set(False)
+
                 # reset signal generator output to get to a known timing
                 sig_gen.write(f'APPLy:PULSe {10}, MAX')
                 sig_gen.write(f'APPLy:PULSe {1 / t}, MAX')
@@ -286,3 +305,16 @@ class Measure:
         self.task.close()
         self.sig_gen.close()
         self.output.close()
+
+
+class Pauser:
+    class pause:
+        @classmethod
+        def get(cls):
+            return False
+        @classmethod
+        def set(cls, _):
+            pass
+
+    def wait_variable(self):
+        pass
