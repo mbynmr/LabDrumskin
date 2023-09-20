@@ -89,8 +89,8 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="
                     indexes = data_list.nonzero()
                     line_all.set_xdata(freqs[indexes])
                     line_all.set_ydata(data_list[indexes])
-                    if i >= int(len(freqs) * 0.9):
-                        if i == int(len(freqs) * 0.9):
+                    if i >= int(len(freqs) * 0.95):
+                        if i == int(len(freqs) * 0.95):
                             # plot a fit line
                             line_all_fit, = ax_all.plot([0, 0], [0, 0], label='Lorentzian fit')
                             ax_all.legend()

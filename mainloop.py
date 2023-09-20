@@ -11,6 +11,7 @@ from my_tools import resave_output, resave_auto
 from aggregation import aggregate, colourplot, manual_peak, manual_peak_auto
 from aggregatestuff import resave
 from fitting import fit, find_peaks
+from timefrequency import time_frequency_spectrum, time_frequency_spectrum2electricboogaloo
 
 
 class Main:
@@ -59,6 +60,7 @@ class Main:
         tk.Button(self.w, textvariable=self.pause_text, command=self.pauser).place(relx=0.2, rely=0.075)
         # todo figure out stop functionality
         # tk.Button(self.w, text='Stop', command=self.stop).place(relx=0.2, rely=0.175)
+        tk.Button(self.w, text='special', command=buttonfunc).place(relx=0.2, rely=0.175)
         tk.Button(self.w, text='Recover (save) last measurement', command=self.resave_output).place(relx=0.1, rely=0.3)
         tk.Button(self.w, text='Force save auto', command=self.resave_auto).place(relx=0.5, rely=0.3)
         tk.Button(self.w, text='Manual peaks', command=self.manual_peak).place(relx=0.7, rely=0.3)
@@ -194,6 +196,8 @@ class Main:
 
 def buttonfunc():
     print("button")
+    time_frequency_spectrum()
+    time_frequency_spectrum2electricboogaloo()
 
 
 def oldmain():
