@@ -25,7 +25,7 @@ def ax_lims(data):
             round_sig_figs(max(data) + diff, 2, 'c'))
 
 
-def resave_output(method=None, save_path=None, temperature=None, sample_name=None, copy=False):
+def resave_output(method=None, save_path=None, temperature=None, sample=None, copy=False):
     # saves output.txt under another name
 
     end_time = time.localtime()[0:6]
@@ -36,19 +36,21 @@ def resave_output(method=None, save_path=None, temperature=None, sample_name=Non
     if temperature is None:
         temperature = input("Temperature ('rt', '40', etc.):")
         # temperature = 20
-    if sample_name is None:
-        sample_name = input("Sample name ('C0', 'CF4', etc.):")
+    if sample is None:
+        sample = input("Sample name ('C0', 'CF4', etc.):")
         # sample_name = "PSY2_J_" + f"{np.random.random():.6g}".split(".")[1]
-    if save_path == None:
+    elif "\n" in sample or "\r" in sample or "\t" in sample or "\b" in sample or "\\" in sample:
+        sample = "placeholder_name"
+        print("bad sample name, replacing with 'placeholder_name'")
+    if save_path is None:
         save_path = input("Write the path to the folder you want to save in (can be 'outputs')")
 
     # add some test details to the file name
-    fname = '_'.join([str(e).zfill(2) for e in end_time]) + f"_{method}_{sample_name}_{temperature}"
+    fname = '_'.join([str(e).zfill(2) for e in end_time]) + f"_{method}_{sample}_{temperature}"
 
     # a[np.argsort(a, axis=0)[:, 0]] sorts by frequency (or whatever is in column 0)!
 
     print(f"\rCopying to file name '{fname}.txt' and sorting by frequency", end='')
-    # save_path = "C:/Users/mbynmr/OneDrive - The University of Nottingham/Documents/Shared - Mechanical Vibrations of Ultrathin Films/Lab/data/PIM/6 percent/auto"
     # np.savetxt(f"{save_path}/{fname}.txt", a[np.argsort(a, axis=0)[:, 0]], fmt='%.4g')
     np.savetxt(f"{save_path}/{fname}.txt", a[np.argsort(a, axis=0)[:, 0]], fmt='%.4g')
     if copy:

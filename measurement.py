@@ -77,6 +77,12 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="
                 time.sleep(0.1)
                 signal = task.read(num)
 
+                # save raw
+                raw = np.zeros([len(signal), 2])
+                raw[:, 0] = np.linspace(0, t, num=len(signal))
+                raw[:, 1] = signal
+                np.savetxt("outputs/raw.txt", raw, fmt='%.4g')
+
                 # process and write to file
                 data = np.sqrt(np.mean(np.square(signal)))  # calculate RMS of signal
                 data_list[np.argwhere(freqs == f)] = data
@@ -195,16 +201,19 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None)
                     # response = np.zeros_like(signal)
                     # signal = signal[np.argmax(np.convolve(np.abs(signal), np.ones(20), "same")) + delay:]
                     # response[len(signal):] = signal
-                    response = np.where(range(len(signal)) > np.argmax(np.abs(signal)) + delay, signal, 0)
+                    # todo 05/02/2024 changed this again. response = signal. why wasn't it like this before?
+                    # response = np.where(range(len(signal)) > np.argmax(np.abs(signal)) + delay, signal, 0)
+                    response = signal
 
                     # process and store
                     data = np.abs(np.fft.fft(response - np.mean(response))[1:int(num / 2)])
                     data_list[:, i - 1] = data
 
                     # update visual plot of data
-                    line_current.set_ydata(response)
+                    line_current.set_ydata(signal)
                     line_all_current.set_ydata(data)
 
+                    # save raw
                     raw = np.zeros([len(signal), 2])
                     raw[:, 0] = np.linspace(0, t, num=len(signal))
                     raw[:, 1] = signal

@@ -58,9 +58,11 @@ def manual_peak(save_path, cutoff, file_name=None):
     resave_auto(save_path=save_path, manual=True)
 
 
-def manual_peak_auto(save_path, cutoff, sample=None, printer=None):
+def manual_peak_auto(save_path, cutoff=None, sample=None, printer=None):
     if sample is None:
         sample = input("enter sample name you are looking at plz:")
+    if cutoff is None:
+        cutoff = [0, 1]
     spectra_path = save_path + "/Spectra"
 
     if printer is None:
@@ -75,6 +77,7 @@ def manual_peak_auto(save_path, cutoff, sample=None, printer=None):
     # datacol3 = error in frequency
     # datacol4 = temperature
 
+    skip = 0
     for i, file in tqdm(enumerate(files), total=len(files), file=printer, ncols=42):
         # if i % 10 != 0:  # remove this for a big run plz
         #     continue
@@ -82,6 +85,7 @@ def manual_peak_auto(save_path, cutoff, sample=None, printer=None):
         sample_name = file.split('.txt')[0].split('_TP')[-1].split('_')[1:-1]  # sample name from the file name
         sample_name = "_".join(sample_name)
         if sample_name != sample:
+            skip += 1
             continue
         method = file.split("_T")[1][0]
 
@@ -99,6 +103,7 @@ def manual_peak_auto(save_path, cutoff, sample=None, printer=None):
         fig, ax = plt.subplots()  # figsize=(16, 9)
         plt.get_current_fig_manager().full_screen_toggle()
         ax.plot(xy[:, 0], xy[:, 1], '.', picker=10)
+        ax.set_title(f"picker {i - skip} of {len(files) - skip}")
         fig.canvas.callbacks.connect('pick_event', on_pick)
         plt.draw()
         with open("outputs/manual.txt", 'w') as m:

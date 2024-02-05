@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import nidaqmx
+import nidaqmx.system as nisys
 # from tqdm import tqdm
 import time
 from scipy.optimize import curve_fit
@@ -28,6 +29,18 @@ def set_up_daq(mode, c1, c2, rate=int(20e3), t=0.2):
         case _:
             raise ValueError("'dual' or 'single' mode for set_up_daq_task")
     return task, num
+
+
+def list_devices():
+    # Lists all connected devices to the system
+    this_system = nisys.System.local()
+    devs = []
+    for device in this_system.devices:
+        devs.append(device.name)
+    print(this_system.devices)
+    chans = ['ai0', 'ai1', 'ai2', 'ai3', 'ai4']  # assumption?? find a way to make this correct.
+    return devs, chans
+    # s = 'Dev1/ai0'
 
 
 class AutoTemp:
@@ -91,6 +104,7 @@ class AutoTemp:
         freqs = np.linspace(start=min_freq, stop=max_freq, num=int((num / 2) - 1), endpoint=True)
         data_list = np.ones([len(freqs), repeats]) * np.nan
 
+        print("starting autotemp...")
         self.task.close()
         self.task, num = set_up_daq(mode='single', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)
         with open("outputs/autotemp.txt", "w") as autotemp:  # reset the file
@@ -98,6 +112,7 @@ class AutoTemp:
 
         overall_start = time.time()
         for i in range(repeats):
+            print(f"\r {i} of {repeats}", end='')
             data = self.measure_pulse(freqs=freqs, delay=delay, sleep_time=sleep_time, num=num, runs=runs)
 
             # data/file management
@@ -106,10 +121,8 @@ class AutoTemp:
             arr[:, 0] = freqs
             arr[:, 1] = data
             np.savetxt("outputs/output.txt", arr)
-            resave_output(
-                method=f"TP{str(i).zfill(len(str(repeats - 1)))}",
-                save_path=self.save_folder_path + r"\Spectra", temperature="T",
-                sample_name=self.sample_name)
+            resave_output(method=f"TP{str(i).zfill(len(str(repeats - 1)))}",
+                          save_path=self.save_folder_path + r"\Spectra", temperature="T", sample=self.sample_name)
 
             # fit
             try:
@@ -162,6 +175,8 @@ class AutoTemp:
         # self.num_freqs = (self.max_freq - 0) / self.min_freq
         freqs = np.linspace(start=min_freq, stop=max_freq, num=int((num / 2) - 1), endpoint=True)
 
+        print("starting autotemp...")
+
         self.task.close()
         self.task = set_up_daq(mode='dual', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)[0]
         required_temps, up = self.required_temps_get(**kwargs)
@@ -172,6 +187,7 @@ class AutoTemp:
             pass
 
         for i, temp_should_be in enumerate(required_temps):
+            print(f"\r {i} of {len(required_temps)}", end='')
             temp = self.temp_move_on(temp_should_be, up)
 
             self.task.close()
@@ -187,10 +203,9 @@ class AutoTemp:
             arr[:, 0] = freqs
             arr[:, 1] = data
             np.savetxt("outputs/output.txt", arr)
-            resave_output(
-                method=f"TP{str(i).zfill(len(str(len(required_temps))))}",
-                save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
-                sample_name=self.sample_name)
+            resave_output(method=f"TP{str(i).zfill(len(str(len(required_temps))))}",
+                          save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
+                          sample=self.sample_name)
 
             # fit
             try:
@@ -222,6 +237,8 @@ class AutoTemp:
         resave_auto(save_path=self.save_folder_path, sample_name=self.sample_name, method="P")
 
     def auto_temp_sweep(self, freqstep=5, **kwargs):
+        print("starting autotemp...")
+
         bounds = self.bounds
         required_temps, up = self.required_temps_get(**kwargs)
         freqs = np.sort(np.linspace(start=bounds[0], stop=bounds[-1],
@@ -233,6 +250,7 @@ class AutoTemp:
         with open("outputs/autotemp.txt", "w") as autotemp:  # reset the file
             pass
         for i, temp_should_be in enumerate(required_temps):
+            print(f"\r {i} of {len(required_temps)}", end='')
             temp = self.temp_move_on(temp_should_be, up)
 
             data, temp = self.measure_sweep(freqs)
@@ -244,10 +262,9 @@ class AutoTemp:
             arr[:, 0] = freqs
             arr[:, 1] = data
             np.savetxt("outputs/output.txt", arr)
-            resave_output(
-                method=f"TS{str(i).zfill(len(str(len(required_temps))))}",
-                save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
-                sample_name=self.sample_name)
+            resave_output(method=f"TS{str(i).zfill(len(str(len(required_temps))))}",
+                          save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
+                          sample=self.sample_name)
 
             # fit
             try:
@@ -276,12 +293,16 @@ class AutoTemp:
         bounds = self.bounds
         if start_guess is None:
             start_guess = 800
+
+        print("starting autotemp...")
+
         required_temps, up = self.required_temps_get(**kwargs)
 
         overall_start = time.time()
         with open("outputs/autotemp.txt", "w") as autotemp:  # reset the file
             pass
         for i, temp_should_be in enumerate(required_temps):
+            print(f"\r {i} of {len(required_temps)}", end='')
             temp = self.temp_move_on(temp_should_be, up)
 
             res = None
@@ -299,10 +320,9 @@ class AutoTemp:
             self.out.close()
             np.savetxt("outputs/output.txt", np.loadtxt("outputs/output_a.txt"), fmt='%.6g')
             self.out = open("outputs/output_a.txt", "w")
-            resave_output(
-                method=f"TA{str(i).zfill(len(str(len(required_temps))))}",
-                save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
-                sample_name=self.sample_name)
+            resave_output(method=f"TA{str(i).zfill(len(str(len(required_temps))))}",
+                          save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
+                          sample=self.sample_name)
 
             print(f"Temp {temp:.3g}, peak at {res.x[0]:.6g} pm {tolerance /2:.2g} Hz after"
                   f"{self.measure_adaptive()} measurements")
@@ -312,8 +332,9 @@ class AutoTemp:
         print(f"That took {time.time() - overall_start:.4g} seconds")
         resave_auto(save_path=self.save_folder_path, sample_name=self.sample_name, method="A")
 
-    def measure_pulse(self, freqs, delay, sleep_time, num, runs=int(33)):
+    def measure_pulse(self, freqs, delay, sleep_time, num, runs=33):
         # returns response to each frequency and the average temperature during the measurement
+        runs = int(runs)
 
         self.sig_gen.write("OUTPut ON")
         data_list = np.ones([len(freqs), runs]) * np.nan
@@ -327,7 +348,9 @@ class AutoTemp:
                 start = time.time()
                 if i > 0:  # do processing of previous signal
                     # discount the pulse and everything before it
-                    response = np.where(range(len(signal)) > np.argmax(np.abs(signal)) + delay, signal, 0)
+                    # todo 05 02 2024 changed response = signal
+                    # response = np.where(range(len(signal)) > np.argmax(np.abs(signal)) + delay, signal, 0)
+                    response = signal
                     # process and store
                     data_list[:, i - 1] = np.abs(np.fft.fft(response - np.mean(response))[1:int(num / 2)])
                 if sleep_time - (time.time() - start) > 1e-3:

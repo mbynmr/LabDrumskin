@@ -5,9 +5,10 @@ import scipy.signal as sg
 from tqdm import tqdm
 
 
-def time_frequency_spectrum():
+def fft_magnitude_and_phase():
     data = np.loadtxt(r"C:\Users\mbynmr\OneDrive - The University of Nottingham" +
-                           r"\Documents\Shared - Mechanical Vibrations of Ultrathin Films\Lab\data\py\raw.txt")
+                           r"\Documents\Shared - Mechanical Vibrations of Ultrathin Films\Lab\data\py\raw.txt")#
+    # C:\Users\mbynmr\OneDrive - The University of Nottingham\Documents\Shared - Mechanical Vibrations of Ultrathin Films\Lab\data\py\raw.txt
     times = data[:, 0]
     data_time = data[:, 1]
     time_end = np.max(times)  # s
@@ -27,21 +28,29 @@ def time_frequency_spectrum():
     # data_hilbert = sg.hilbert(data_frequency)
     # intensities = np.abs(data_hilbert)
     intensities = np.abs(data_frequency)
-
+    phases = np.angle(data_frequency)
 
     intensities_to_plot = intensities[:int(len(intensities)/2)]
+    phases_to_plot = phases[:int(len(phases)/2)]
+
     plt.ion()
 
-    ax = plt.subplots(num="fft of all time")[1]
-    ax.plot(frequencies_from_fft[:int(len(intensities)/2)], intensities_to_plot, '-')
+    axp = plt.subplots(num="fft of all time")[1]
 
-    ax.set_xlabel("frequency / Hz")
-    ax.set_ylabel("power")
-    plt.ylim([0, 100])
+    ax = axp.twinx()
+    axp.plot(frequencies_from_fft[:int(len(intensities)/2)], intensities_to_plot, 'b-', label='power')
+    # ax.plot(frequencies_from_fft[:int(len(intensities)/2)], phases_to_plot, 'r-', label='phase')
+
+    ax.set_ylabel("phase")
+    axp.set_xlabel("frequency / Hz")
+    axp.set_ylabel("power")
+    # plt.ylim([0, 100])
     plt.draw()
+
     plt.ioff()
 
-def time_frequency_spectrum2electricboogaloo():
+
+def time_frequency_spectrum2electricboogaloo(filter_type='gauss', sigma=200):
     data = np.loadtxt(r"C:\Users\mbynmr\OneDrive - The University of Nottingham" +
                            r"\Documents\Shared - Mechanical Vibrations of Ultrathin Films\Lab\data\py\raw.txt")
     times = data[:, 0]
@@ -53,10 +62,10 @@ def time_frequency_spectrum2electricboogaloo():
     maximum_frequency = (number_of_samples / 2) / time_end  # = data_rate / 2  # aka Nyquist frequency
     bins = int(5e3)
     # filter_type = 'top hat'
-    filter_type = 'gauss'
+    # filter_type = 'gauss'
     # filter_type = 'none'
-    # end_frequency = maximum_frequency
-    end_frequency = 1e4  # Hz
+    end_frequency = maximum_frequency
+    # end_frequency = 1e4  # Hz
 
 
     frequencies = np.linspace(start=minimum_frequency, stop=maximum_frequency, num=int((number_of_samples-1)/2),
@@ -76,11 +85,9 @@ def time_frequency_spectrum2electricboogaloo():
         if filter_type == 'top hat':
             the_filter = (bin_edges[i] <= frequencies) * (frequencies < bin_edges[i + 1])
         elif filter_type == 'gauss':
-            sigma = 100
-            mean = bin_centres[i]
             # x = np.arange(start=-1, stop=1, step=4/data_frequency.shape[0])[1:]
             x = np.linspace(start=minimum_frequency, stop=maximum_frequency, num=int(data_frequency.shape[0]/2))[1:]
-            the_filter = np.exp(-(x - mean) ** 2 * 0.5 * sigma ** -2)  # * (2 * np.pi * sigma ** 2) ** -2
+            the_filter = np.exp(-(x - bin_centres[i]) ** 2 * 0.5 * sigma ** -2)  # * (2 * np.pi * sigma ** 2) ** -2
         elif filter_type == 'none':
             the_filter = np.ones([int((data_frequency.shape[0] - 1) / 2)])
         else:
@@ -115,29 +122,31 @@ def time_frequency_spectrum2electricboogaloo():
     # intensities_to_plot = np.mean(intensities_to_compress, axis=2)
     # times_to_plot = np.mean(times_to_compress, axis=1)
     # ----
-    intensities_to_plot = intensities
-    times_to_plot = times
     # ----
     # graph = (np.array(range(times.shape[0])) % compress == 0)
     # intensities_to_plot = intensities[:, graph]
     # times_to_plot = times[graph]
     # ----
 
-    # intensities_to_plot[bin_centres < 1.5e3, :] = 0  # quick and dirty remove sub 1kHz
+    # intensities_to_plot = intensities
+    # times_to_plot = times
+    # argmax stops at the first true case
+    time_cutoffs = [0.055, 0.09]
+    times_to_plot = times[np.argmax(times > time_cutoffs[0]):np.argmin(times < time_cutoffs[1])]
+    intensities_to_plot = intensities[:, np.argmax(times > time_cutoffs[0]):np.argmin(times < time_cutoffs[1])]
 
     time_axis, frequency_axis = np.meshgrid(times_to_plot, bin_centres)
-    ax = plt.subplots(subplot_kw={"projection": "3d"}, num="frequencies at times")[1]  # make a subplot that has 3D axes
+
+    plt.ion()
+    ax = plt.subplots(subplot_kw={"projection": "3d"}, num=f"frequencies at times {filter_type} {sigma}")[1]
+    # make a subplot that has 3D axes
     ax.plot_surface(time_axis, frequency_axis, intensities_to_plot, cmap=cm.jet)  # plot a surface on those axes
     # ax.plot_wireframe(time_axis, frequency_axis, intensities_to_plot)  # plot a surface on those axes
     ax.set_xlabel("time/s")
     ax.set_ylabel("frequency/Hz")
     ax.set_zlabel("power")
-    plt.show()
-
-
-def phase_information():
-    # todo try to extract some phase information from the pulse...
-    pass
+    plt.draw()
+    plt.ioff()
 
 
 def time_frequency_spectrum_original_coursework():

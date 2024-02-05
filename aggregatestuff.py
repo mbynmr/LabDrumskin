@@ -63,7 +63,11 @@ def resave(save_path, name=None):
         a[i, 0] = t
         a[i, 1] = peak
         a[i, 2] = error
-        a[i, 3] = file.split("_")[-1].split(".")[0]
+        temp = file.split("_")[-1].split(".")[0]
+        if isinstance(temp, str):
+            a[i, 3] = 0
+        else:
+            a[i, 3] = temp
 
     a = a[np.nonzero(a[:, 1])]  # ignore non-related files
     a[:, 0] = a[:, 0] - a[a[:, 0].argmin(), 0]
