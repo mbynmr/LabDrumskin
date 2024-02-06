@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import nidaqmx
-import nidaqmx.system as nisys
+import nidaqmx as ni
 # from tqdm import tqdm
 import time
 from scipy.optimize import curve_fit
@@ -15,7 +14,7 @@ from aggregatestuff import resave
 
 
 def set_up_daq(mode, c1, c2, rate=int(20e3), t=0.2):
-    task = nidaqmx.Task()
+    task = ni.Task()
     match mode:
         case 'dual':
             num = int(np.ceil(int(rate / 2) * t))  # number of samples to measure
@@ -32,15 +31,8 @@ def set_up_daq(mode, c1, c2, rate=int(20e3), t=0.2):
 
 
 def list_devices():
-    # Lists all connected devices to the system
-    this_system = nisys.System.local()
-    devs = []
-    for device in this_system.devices:
-        devs.append(device.name)
-    print(this_system.devices)
-    chans = ['ai0', 'ai1', 'ai2', 'ai3', 'ai4']  # assumption?? find a way to make this correct.
-    return devs, chans
-    # s = 'Dev1/ai0'
+    # Lists all connected devices to the system, and their channels for format 'Dev1/ai0'
+    return [d.name for d in ni.system.System.local().devices], ['ai0', 'ai1', 'ai2', 'ai3', 'ai4', 'ai5', 'ai6', 'ai7']
 
 
 class AutoTemp:

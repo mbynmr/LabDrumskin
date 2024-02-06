@@ -52,8 +52,8 @@ class Main:
         # print command redirect
         self.print_box = scrolledtext.ScrolledText(self.w, width=42, height=13)
         self.print_box.place(relx=0.01, rely=0.4)
-        self.writestore = sys.stdout.write  # store it for use later when closing
-        sys.stdout.write = self.write  # redirect "print" to the GUI
+
+        self.Writer = Writer(self.print_box)
 
         self.w.mainloop()
 
@@ -189,6 +189,20 @@ class Main:
     def select_path(self):
         self.save_path.set(filedialog.askdirectory())
 
+    def close(self):
+        self.Writer.close()
+        matplotlibclose("all")
+        self.w.destroy()
+        # print("Closed")
+        # quit()
+
+
+class Writer:
+    def __init__(self, text_holder):
+        self.text_holder = text_holder
+        self.writestore = sys.stdout.write  # store it for use later when closing
+        sys.stdout.write = self.write  # redirect "print" to the GUI
+
     def write(self, s):
         # s.split("\n")
         #  for loop over all those splits to make sure it is handled correctly?
@@ -196,24 +210,21 @@ class Main:
             return
         if s[0:1] == '\r':  # todo this currently deletes the last tqdm line if the next line begins with \r
             s = s[1:]
-            last_line = self.print_box.get("end-2c linestart", "end-2c lineend")
+            last_line = self.text_holder.get("end-2c linestart", "end-2c lineend")
             if len(last_line) >= 7:
                 if not (last_line[0] == "[" and last_line[3] == ":" and last_line[6] == "]"):
-                    self.print_box.delete('end-2l', 'end-1l')  # replace previous line if it was tqdm/not a normal print
-            self.print_box.insert(tk.END, s + '\n')
+                    self.text_holder.delete('end-2l',
+                                            'end-1l')  # replace previous line if it was tqdm/not a normal print
+            self.text_holder.insert(tk.END, s + '\n')
         else:
             if s[0:1] == '\n':
                 s = s[1:]
-            self.print_box.insert(tk.END,
-                                  '[' + ':'.join([str(e).zfill(2) for e in time.localtime()[3:5]]) + ']' + s + '\n')
-        self.print_box.see(tk.END)
+            self.text_holder.insert(tk.END,
+                                    '[' + ':'.join([str(e).zfill(2) for e in time.localtime()[3:5]]) + ']' + s + '\n')
+        self.text_holder.see(tk.END)
 
     def close(self):
         sys.stdout.write = self.writestore
-        matplotlibclose("all")
-        self.w.destroy()
-        # print("Closed")
-        # quit()
 
 
 def buttonfunc():

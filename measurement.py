@@ -26,7 +26,7 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="
         printer = sys.stderr
         pauser = Pauser
     else:
-        printer = GUI
+        printer = GUI.Writer
         pauser = GUI
 
     sig_gen = set_up_signal_generator_sine()
@@ -133,7 +133,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None)
         printer = sys.stderr
         pauser = Pauser
     else:
-        printer = GUI
+        printer = GUI.Writer
         pauser = GUI
 
     sig_gen = set_up_signal_generator_pulse()
