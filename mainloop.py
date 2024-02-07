@@ -34,10 +34,11 @@ class Main:
         self.fit = tk.BooleanVar(self.w, value=True)
         self.pause = tk.BooleanVar(self.w, value=False)
         self.sample_name = tk.StringVar(self.w, value='SAMPLENAME')
-        self.save_path = tk.StringVar(self.w, value='outputs')
+        # self.save_path = tk.StringVar(self.w, value='outputs')
+        self.save_path = tk.StringVar(self.w, value=r'C:/Users/mbynmr/OneDrive - The University of Nottingham/Documents/Shared - Mechanical Vibrations of Ultrathin Films/Lab/data/PSY/Vary thickness')
         self.t = tk.DoubleVar(self.w, value=0.2)
         self.runs = tk.DoubleVar(self.w, value=33)
-        self.freqstep = tk.DoubleVar(self.w, value=5)
+        self.freqstep = tk.DoubleVar(self.w, value=20)
         self.boundU = tk.DoubleVar(self.w, value=5000)
         self.boundL = tk.DoubleVar(self.w, value=50)
         self.vpp = tk.DoubleVar(self.w, value=10)
@@ -50,7 +51,7 @@ class Main:
         self.widgets(*list_devices())
 
         # print command redirect
-        self.print_box = scrolledtext.ScrolledText(self.w, width=42, height=13)
+        self.print_box = scrolledtext.ScrolledText(self.w, width=52, height=13)
         self.print_box.place(relx=0.01, rely=0.4)
 
         self.Writer = Writer(self.print_box)
@@ -73,49 +74,56 @@ class Main:
         tk.Radiobutton(self.w, text='Sweep', variable=self.method, value='S').place(relx=0.25, rely=0.05)
         tk.Radiobutton(self.w, text='Adapt', variable=self.method, value='A').place(relx=0.25, rely=0.125)
         tk.Radiobutton(self.w, text='Pulse', variable=self.method, value='P').place(relx=0.25, rely=0.2)
+        tk.Label(self.w, text="Actuation Style").place(relx=0.225, rely=0.01)
 
         # method options for multiple/single
         tk.Radiobutton(self.w, text='Single run', variable=self.run_type, value='single').place(relx=0.35, rely=0.075)
         tk.Radiobutton(self.w, text='Autotemp', variable=self.run_type, value='autotemp').place(relx=0.35, rely=0.175)
+        tk.Label(self.w, text="Repeats?").place(relx=0.38, rely=0.01)
 
         # toggle fit view after
         tk.Checkbutton(self.w, text="Fit after?", variable=self.fit).place(relx=0.5, rely=0.075)
 
-        x = 0.05  # x shift for lots of things at once
         # text entries with labels
-        tk.Entry(self.w, textvariable=self.repeats).place(relx=0.44 + x, rely=0.2)
-        tk.Label(self.w, text="AutoTemp Repeats").place(relx=0.44 + x, rely=0.15)
-        tk.Entry(self.w, textvariable=self.sample_name).place(relx=0.7 + x, rely=0.1)
-        tk.Label(self.w, text="Sample name").place(relx=0.7 + x, rely=0.05)
-        tk.Entry(self.w, textvariable=self.save_path).place(relx=0.7 + x, rely=0.2)
-        tk.Label(self.w, text="Save path").place(relx=0.7 + x, rely=0.15)
-        tk.Button(self.w, text='Path', command=self.select_path).place(relx=0.88 + x, rely=0.19)
-        tk.Entry(self.w, textvariable=self.t).place(relx=0.7 + x, rely=0.45)
+        tk.Entry(self.w, textvariable=self.repeats, width=5).place(relx=0.49, rely=0.2)
+        tk.Label(self.w, text="Repeats").place(relx=0.49, rely=0.15)
+        tk.Entry(self.w, textvariable=self.sample_name, width=13).place(relx=0.65, rely=0.1)
+        tk.Label(self.w, text="Sample name").place(relx=0.65, rely=0.05)
+        tk.Entry(self.w, textvariable=self.save_path, width=27).place(relx=0.65, rely=0.2)
+        tk.Label(self.w, text="Save path").place(relx=0.65, rely=0.15)
+        tk.Button(self.w, text='Path', command=self.select_path).place(relx=0.93, rely=0.19)
+        x = 0.2  # x shift for lots of things at once
+        tk.Entry(self.w, textvariable=self.t, width=5).place(relx=0.7 + x, rely=0.45)
         tk.Label(self.w, text="Measure time").place(relx=0.56 + x, rely=0.45)
-        tk.Entry(self.w, textvariable=self.boundL).place(relx=0.6 + x, rely=0.5)
-        tk.Entry(self.w, textvariable=self.boundU).place(relx=0.7 + x, rely=0.5)
+        tk.Entry(self.w, textvariable=self.boundL, width=5).place(relx=0.6 + x, rely=0.5)
+        tk.Entry(self.w, textvariable=self.boundU, width=5).place(relx=0.7 + x, rely=0.5)
         tk.Label(self.w, text="< f <").place(relx=0.645 + x, rely=0.5)
-        tk.Entry(self.w, textvariable=self.runs).place(relx=0.7 + x, rely=0.6)
+        tk.Entry(self.w, textvariable=self.runs, width=5).place(relx=0.7 + x, rely=0.6)
         tk.Label(self.w, text="Repeats (pulse)").place(relx=0.555 + x, rely=0.6)
-        tk.Entry(self.w, textvariable=self.freqstep).place(relx=0.7 + x, rely=0.7)
+        tk.Entry(self.w, textvariable=self.freqstep, width=5).place(relx=0.7 + x, rely=0.7)
         tk.Label(self.w, text="f step (sweep)").place(relx=0.565 + x, rely=0.7)
-        tk.Entry(self.w, textvariable=self.vpp).place(relx=0.7 + x, rely=0.75)
+        tk.Entry(self.w, textvariable=self.vpp, width=5).place(relx=0.7 + x, rely=0.75)
         tk.Label(self.w, text="Vpp (sweep)").place(relx=0.58 + x, rely=0.75)
 
         # finally, device & channel dropdowns using Combobox widgets
         # tk.Entry(self.w, textvariable=self.dev_signal).place(relx=0.7 + x, rely=0.85)
-        cds = Combobox(self.w, values=devs, textvariable=self.dev_signal, width=6)
-        cds.place(relx=0.7 + x, rely=0.85)
-        ccs = Combobox(self.w, values=chans, textvariable=self.chan_signal, width=6)
-        ccs.place(relx=0.8 + x, rely=0.85)
-        tk.Label(self.w, text="Signal device").place(relx=0.57 + x, rely=0.85)
+        Combobox(self.w, values=devs, textvariable=self.dev_signal, width=5).place(relx=0.82, rely=0.85)
+        Combobox(self.w, values=chans, textvariable=self.chan_signal, width=5).place(relx=0.91, rely=0.85)
+        tk.Label(self.w, text="Signal").place(relx=0.75, rely=0.85)
         # tk.Entry(self.w, textvariable=self.dev_temp).place(relx=0.7 + x, rely=0.9)
-        cdt = Combobox(self.w, values=devs, textvariable=self.dev_temp, width=6)
-        cdt.place(relx=0.7 + x, rely=0.9)
-        cct = Combobox(self.w, values=chans, textvariable=self.chan_temp, width=6)
-        cct.place(relx=0.8 + x, rely=0.9)
-        tk.Label(self.w, text="Temp device").place(relx=0.5725 + x, rely=0.9)
+        Combobox(self.w, values=devs, textvariable=self.dev_temp, width=5).place(relx=0.82, rely=0.9)
+        Combobox(self.w, values=chans, textvariable=self.chan_temp, width=5).place(relx=0.91, rely=0.9)
+        tk.Label(self.w, text="Temp").place(relx=0.75, rely=0.9)
         # self.cds.current([i for i, x in enumerate(self.devs) if x == self.dev_signal.get()][0])  # not needed phew.
+
+        # # copy of comboboxes hehe
+        # Combobox(self.w, values=devs, textvariable=self.dev_signal, width=5).place(relx=0.82, rely=0.5)
+        # Combobox(self.w, values=chans, textvariable=self.chan_signal, width=5).place(relx=0.91, rely=0.5)
+        # tk.Label(self.w, text="Signal device").place(relx=0.85, rely=0.45)
+        # Combobox(self.w, values=devs, textvariable=self.dev_temp, width=5).place(relx=0.82, rely=0.6)
+        # Combobox(self.w, values=chans, textvariable=self.chan_temp, width=5).place(relx=0.91, rely=0.6)
+        # tk.Label(self.w, text="Temp device").place(relx=0.85, rely=0.55)
+
 
     def stop(self):
         print("stop")
@@ -156,8 +164,8 @@ class Main:
         elif self.run_type.get() == "single":
             match self.method.get():
                 case 'P':
-                    measure_pulse_decay(self.dev_signal.get() + '/' + self.chan_signal.get(), runs=self.runs.get(), delay=10,
-                                        t=self.t.get(), GUI=self)
+                    measure_pulse_decay(self.dev_signal.get() + '/' + self.chan_signal.get(), runs=self.runs.get(),
+                                        delay=10, t=self.t.get(), GUI=self)
                 case 'A':
                     measure_adaptive(self.dev_signal.get() + '/' + self.chan_signal.get(), vpp=self.vpp.get(),
                                      tolerance=self.freqstep.get(), start_guess=600, deltainit=1e2,
