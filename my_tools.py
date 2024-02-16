@@ -50,7 +50,7 @@ def resave_output(method=None, save_path=None, temperature=None, sample=None, co
 
     # a[np.argsort(a, axis=0)[:, 0]] sorts by frequency (or whatever is in column 0)!
 
-    print(f"\rCopying to file name '{fname}.txt' and sorting by frequency", end='')
+    print(f"Copying to file name '{fname}.txt' and sorting by frequency", end='')
     # np.savetxt(f"{save_path}/{fname}.txt", a[np.argsort(a, axis=0)[:, 0]], fmt='%.4g')
     np.savetxt(f"{save_path}/{fname}.txt", a[np.argsort(a, axis=0)[:, 0]], fmt='%.4g')
     if copy:
@@ -103,7 +103,7 @@ def toggle_plot(fig):
 
 def copy2clip(txt):
     # credit: https://stackoverflow.com/a/41029935
-    print(f"Copying {txt} to clipboard")
+    print(f"Clipboard is {txt}")
     return check_call('echo ' + txt.strip() + '|clip', shell=True)
 
 

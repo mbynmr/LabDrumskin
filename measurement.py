@@ -118,8 +118,8 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="
     sig_gen.write('OUTPut OFF')  # stop making an annoying noise!
     plt.close(fig)
     plt.ioff()
-    print(f"Lorentzian fit x0 = {values[1]}")
-    print(f"Maximum peak value at f = {freqs[np.argmax(data_list)]}")
+    # print(f"Lorentzian fit x0 = {values[1]}")
+    # print(f"Maximum peak value at f = {freqs[np.argmax(data_list)]}")
 
     if suppressed:
         return freqs, data_list
@@ -194,15 +194,6 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None)
                 ax_current.set_title(f"Run number: {str(i).zfill(len(str(runs)))} of {runs}")
                 start = time.time()
                 if i > 0:  # do processing of previous signal
-                    # discount the pulse and everything before it
-
-                    # todo changed this
-                    # # response = np.where(range(len(signal)) > np.argmax(np.convolve(np.abs(signal), np.ones(20), "same")) + delay, signal, 0)
-                    # response = np.zeros_like(signal)
-                    # signal = signal[np.argmax(np.convolve(np.abs(signal), np.ones(20), "same")) + delay:]
-                    # response[len(signal):] = signal
-                    # todo 05/02/2024 changed this again. response = signal. why wasn't it like this before?
-                    # response = np.where(range(len(signal)) > np.argmax(np.abs(signal)) + delay, signal, 0)
                     response = signal
 
                     # process and store
@@ -245,6 +236,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None)
     sig_gen.write('OUTPut OFF')  # stop making an annoying noise!
     plt.close(fig)
     plt.ioff()
+    # print(f"Maximum peak value at f = {freqs[np.argmax(data_list)]}")
 
     # file management
     arr = np.zeros([len(freqs), 2])

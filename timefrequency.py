@@ -67,7 +67,6 @@ def time_frequency_spectrum2electricboogaloo(filter_type='gauss', sigma=200):
     end_frequency = maximum_frequency
     # end_frequency = 1e4  # Hz
 
-
     frequencies = np.linspace(start=minimum_frequency, stop=maximum_frequency, num=int((number_of_samples-1)/2),
                               endpoint=True)
     # if number_of_samples % 2 == 0:

@@ -339,9 +339,6 @@ class AutoTemp:
                 self.sig_gen.write(f'APPLy:PULSe {1 / self.t}, MAX')
                 start = time.time()
                 if i > 0:  # do processing of previous signal
-                    # discount the pulse and everything before it
-                    # todo 05 02 2024 changed response = signal
-                    # response = np.where(range(len(signal)) > np.argmax(np.abs(signal)) + delay, signal, 0)
                     response = signal
                     # process and store
                     data_list[:, i - 1] = np.abs(np.fft.fft(response - np.mean(response))[1:int(num / 2)])
