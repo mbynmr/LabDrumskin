@@ -38,8 +38,8 @@ class Main:
         self.save_path = tk.StringVar(self.w, value=r'C:/Users/mbynmr/OneDrive - The University of Nottingham/Documents/Shared - Mechanical Vibrations of Ultrathin Films/Lab/data/PSY/Vary thickness')
         self.t = tk.DoubleVar(self.w, value=0.2)
         self.runs = tk.DoubleVar(self.w, value=33)
-        self.freqstep = tk.DoubleVar(self.w, value=20)
-        self.boundU = tk.DoubleVar(self.w, value=5000)
+        self.freqstep = tk.DoubleVar(self.w, value=10)
+        self.boundU = tk.DoubleVar(self.w, value=7000)
         self.boundL = tk.DoubleVar(self.w, value=50)
         self.vpp = tk.DoubleVar(self.w, value=10)
         self.dev_signal = tk.StringVar(self.w, value='Dev2')
@@ -65,7 +65,7 @@ class Main:
         tk.Button(self.w, textvariable=self.pause_text, command=self.pauser).place(relx=0.15, rely=0.075)
         # todo figure out stop functionality
         # tk.Button(self.w, text='Stop', command=self.stop).place(relx=0.2, rely=0.175)
-        tk.Button(self.w, text='special', command=buttonfunc).place(relx=0.15, rely=0.175)
+        tk.Button(self.w, text='wavelet', command=buttonfunc).place(relx=0.15, rely=0.175)
         tk.Button(self.w, text='Recover (save) last measure', command=self.resave_output).place(relx=0.12, rely=0.925)
         tk.Button(self.w, text='Force save auto', command=self.resave_auto).place(relx=0.4, rely=0.925)
         tk.Button(self.w, text='Manual peaks', command=self.manual_peak).place(relx=0.57, rely=0.925)
@@ -165,7 +165,13 @@ class Main:
             fit(file_name_and_path="outputs/output.txt", copy=True)  # todo cutoff
 
     def resave_output(self):
-        resave_output(method=self.method.get(), save_path=self.save_path.get(), temperature=20,
+        method = self.method.get()
+        match method:
+            case 'S':
+                method = method + f'{self.vpp.get():.2g}' + 'V'
+            case 'P':
+                method = method + f'{self.runs.get()}'
+        resave_output(method=method, save_path=self.save_path.get(), temperature=20,
                       sample=self.sample_name.get(), copy=True)
 
     def resave_auto(self):

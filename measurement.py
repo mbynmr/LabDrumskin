@@ -12,7 +12,7 @@ from fitting import fit_fast
 from IO_setup import set_up_signal_generator_sine, set_up_signal_generator_pulse
 
 
-def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=5, devchan="Dev1/ai0", GUI=None):
+def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=10, devchan="Dev1/ai0", GUI=None):
     """
     Measures a film by exciting a series of frequencies using sine waves then measuring the response.
     freq=[minf, maxf] is the minimim and maximum frequencies to sweep between
