@@ -9,9 +9,10 @@ from measurement import measure_sweep, measure_pulse_decay, measure_adaptive
 from automation import AutoTemp, list_devices
 from my_tools import resave_output, resave_auto
 from aggregation import aggregate, manual_peak_auto  # , colourplot, manual_peak
-from aggregatestuff import resave
+# from aggregatestuff import resave
 from fitting import fit  # , find_peaks
 from timefrequency import fft_magnitude_and_phase, time_frequency_spectrum2electricboogaloo
+from wireplot import wireplot_manager
 
 
 class Main:
@@ -61,11 +62,12 @@ class Main:
 
     def widgets(self, devs, chans):
         # some buttons
-        tk.Button(self.w, text='Measure', command=self.run).place(relx=0.025, rely=0.125)
-        tk.Button(self.w, textvariable=self.pause_text, command=self.pauser).place(relx=0.15, rely=0.075)
+        tk.Button(self.w, text='Measure', command=self.run).place(relx=0.025, rely=0.075)
+        tk.Button(self.w, textvariable=self.pause_text, command=self.pauser).place(relx=0.025, rely=0.175)
         # todo figure out stop functionality
         # tk.Button(self.w, text='Stop', command=self.stop).place(relx=0.2, rely=0.175)
-        tk.Button(self.w, text='wavelet', command=buttonfunc).place(relx=0.15, rely=0.175)
+        tk.Button(self.w, text='wavelet', command=buttonfunc).place(relx=0.15, rely=0.075)
+        tk.Button(self.w, text='3D plot', command=self.wire).place(relx=0.15, rely=0.175)
         tk.Button(self.w, text='Recover (save) last measure', command=self.resave_output).place(relx=0.12, rely=0.925)
         tk.Button(self.w, text='Force save auto', command=self.resave_auto).place(relx=0.4, rely=0.925)
         tk.Button(self.w, text='Manual peaks', command=self.manual_peak).place(relx=0.57, rely=0.925)
@@ -170,7 +172,7 @@ class Main:
             case 'S':
                 method = method + f'{self.vpp.get():.2g}' + 'V'
             case 'P':
-                method = method + f'{self.runs.get()}'
+                method = method + str(int(self.runs.get()))
         resave_output(method=method, save_path=self.save_path.get(), temperature=20,
                       sample=self.sample_name.get(), copy=True)
 
@@ -183,6 +185,9 @@ class Main:
                          cutoff=[self.boundL.get() / 1e4, self.boundU.get() / 1e4], sample=self.sample_name.get())
         # # manual_peak(save_path=save_path + r"\AutoTemp", cutoff=[0.05, 0.6])
         # resave(save_path + r"\AutoTemp")
+
+    def wire(self):
+        wireplot_manager(self.save_path.get(), mode='conc', printer=self.Writer)
 
     def select_path(self):
         self.save_path.set(filedialog.askdirectory())
