@@ -1,3 +1,5 @@
+import time
+import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 # from mpl_toolkits.mplot3d import axes3d
@@ -18,8 +20,8 @@ def wireplot_manager(path, mode=None, printer=None, ax=None):
         ax = fig.add_subplot(projection='3d')
         # ax.set_xlabel('concentration/temperature/thickness/time')
         ax.set_xlabel('Concentration / %wt')
-        ax.set_ylabel('Frequency / Hz')
-        ax.set_zlabel('ln(Response / a.u.)')
+        ax.set_ylabel('Frequency / kHz')
+        ax.set_zlabel('ln(Normalised Response)')
 
     files = os.listdir(path)
     files.sort()
@@ -27,14 +29,19 @@ def wireplot_manager(path, mode=None, printer=None, ax=None):
     for i, file in enumerate(files):
         # 2024_03_12_13_11_10_S1V_PSY1_6_20.txt
         if file.split('.')[-1] == 'txt' and len(file.split('_')) >= 10:  # this is specific file name format!!
-            x, f, response = data_extractor(path + "/" + file, mode)
-            wireplot(ax, x, f, np.log(response))
-
+            x, f, response = data_extractor(path, file, mode)
+            # normalise
+            z = response / np.mean(response)
+            z = np.log(z)
+            # # alternative to ln(z)?
+            # ax.set_zlim([0, 4])
+            wireplot(ax, x, f * 1e-3, z)
+    # ax.set_ylim([0, 5000])
     plt.show()
 
 
-def data_extractor(file, mode):
-    data = np.loadtxt(file)
+def data_extractor(path, file, mode):
+    data = np.loadtxt(path + "/" + file)
     f = data[:, 0]
     response = data[:, 1]
     x = np.ones_like(f)
@@ -42,19 +49,14 @@ def data_extractor(file, mode):
         case 'conc':  # concentration mode
             x = float(file.split('_')[7][3:]) * x
         case 'thick':  # thickness mode
-            lookup_table = 1
-            thing = float(file.split('_')[7][3:])
+            lookup_table = 1  # todo make a lookup table which turns concentration into thickness (requires measurement)
+            conc = float(file.split('_')[7][3:])
             x = lookup_table * x
         case 'temp':  # temperature mode
             x = float(file.split('_')[-1]) * x
         case 'time':  # time mode
-            times = file.split('_')[:6]
-            t = int(times[-1])
-            t += int(times[-2]) * 60
-            t += int(times[-3]) * 60 * 60
-            t += int(times[-4]) * 60 * 60 * 24
-            # t += int(times[-4]) * 60 * 60 * 24 * 28
-            x = t * x
+            # deconstruct file name, map from list of str to tuple of int, convert to datetime obj, convert to epoch s
+            x = datetime.datetime(*tuple(map(int, file.split('_')[:6]))).timestamp() * x
     return x, f, response
     # collapse all lists of f values into one list that includes them all
     # sweeps and pulses (and even multiple sweeps) have different frequency values.

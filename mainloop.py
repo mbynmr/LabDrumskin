@@ -13,6 +13,7 @@ from aggregation import aggregate, manual_peak_auto  # , colourplot, manual_peak
 from fitting import fit  # , find_peaks
 from timefrequency import fft_magnitude_and_phase, time_frequency_spectrum2electricboogaloo
 from wireplot import wireplot_manager
+from audio import play_mic_signal, play_spectra, play_stop
 
 
 class Main:
@@ -36,7 +37,8 @@ class Main:
         self.pause = tk.BooleanVar(self.w, value=False)
         self.sample_name = tk.StringVar(self.w, value='SAMPLENAME')
         # self.save_path = tk.StringVar(self.w, value='outputs')
-        self.save_path = tk.StringVar(self.w, value=r'C:/Users/mbynmr/OneDrive - The University of Nottingham/Documents/Shared - Mechanical Vibrations of Ultrathin Films/Lab/data/PSY/Vary thickness')
+        self.save_path = tk.StringVar(self.w,
+                                      value=r'C:/Users/mbynmr/OneDrive - The University of Nottingham/Documents/Shared - Mechanical Vibrations of Ultrathin Films/Lab/data/PSY/Vary thickness')
         self.t = tk.DoubleVar(self.w, value=0.2)
         self.runs = tk.DoubleVar(self.w, value=33)
         self.freqstep = tk.DoubleVar(self.w, value=10)
@@ -72,6 +74,11 @@ class Main:
         tk.Button(self.w, text='Force save auto', command=self.resave_auto).place(relx=0.4, rely=0.925)
         tk.Button(self.w, text='Manual peaks', command=self.manual_peak).place(relx=0.57, rely=0.925)
         tk.Button(self.w, text='Close', command=self.close).place(relx=0.025, rely=0.925)
+
+        tk.Label(self.w, text="Audio").place(relx=0.7, rely=0.01)
+        tk.Button(self.w, text='Play raw signal', command=audio_raw).place(relx=0.7, rely=0.075)
+        tk.Button(self.w, text='Play spectra', command=audio_spectra).place(relx=0.7, rely=0.15)
+        tk.Button(self.w, text='Stop audio', command=audio_stop).place(relx=0.7, rely=0.225)
 
         # method options
         tk.Radiobutton(self.w, text='Sweep', variable=self.method, value='S').place(relx=0.25, rely=0.05)
@@ -236,3 +243,15 @@ def buttonfunc():
     # a = input("done?")
     time_frequency_spectrum2electricboogaloo(sigma=1e2)
     time_frequency_spectrum2electricboogaloo(sigma=1e3)
+
+
+def audio_raw():
+    play_mic_signal()
+
+
+def audio_spectra():
+    play_spectra(filedialog.askopenfilename())
+
+
+def audio_stop():
+    play_stop()

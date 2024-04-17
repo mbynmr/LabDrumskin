@@ -46,7 +46,7 @@ def fit(file_name_and_path, cutoff=None, copy=True):
 
     if cutoff is not None:
         if 0 <= cutoff[0] < cutoff[1] <= 1:
-            data = data[int(len(data[:, 0]) * cutoff[0]):int(len(data[:, 0]) * cutoff[1])]
+            data = data[int(len(data[:, 0]) * cutoff[0]):int(len(data[:, 0]) * cutoff[1]), :]
     # fpeak = peak_finder_with_derivatives(data)
     x = data[:, 0]
     y = data[:, 1]

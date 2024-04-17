@@ -162,7 +162,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None)
     min_freq = 1 / t
     max_freq = rate / 2  # = (num / 2) / t  # aka Nyquist frequency
     # num_freqs = (max_freq - 0) / min_freq  # is this wrong?
-    freqs = np.linspace(start=min_freq, stop=max_freq, num=int((num / 2) - 1), endpoint=True)
+    freqs = np.linspace(start=min_freq, stop=max_freq, num=int(num / 2), endpoint=True)
     line_all_current, = ax_all.plot(freqs, np.zeros_like(freqs), label="Previous")
     line_all, = ax_all.plot(freqs, np.zeros_like(freqs), label="Moving Average")
     # line_all_min, = ax_all.plot(freqs, np.zeros_like(freqs), label="Minimum")
@@ -178,6 +178,8 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None)
         task.ai_channels.add_ai_voltage_chan(devchan, min_val=-10.0, max_val=10.0)
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         data_list = np.ones([len(freqs), runs]) * np.nan
+        datar_list = np.ones([len(freqs), runs]) * np.nan
+        datai_list = np.ones([len(freqs), runs]) * np.nan
         # response = data = y = np.zeros_like(freqs)  # make room in memory
         for i in tqdm(range(runs + 1), total=runs + 1, ncols=52, file=printer):
             complete = False
@@ -197,8 +199,16 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None)
                     response = signal
 
                     # process and store
-                    data = np.abs(np.fft.fft(response - np.mean(response))[1:int(num / 2)])
+                    # todo this matters a lot i think, especially for the piezo peak.
+                    fft = np.fft.fft(response - np.mean(response))
+                    # np.allclose(np.real(fft[1:int(len(fft)/2)]), np.real(fft[int(len(fft)/2)+1:][::-1])) == True
+                    # np.allclose(np.imag(fft[1:int(len(fft)/2)]), -np.imag(fft[int(len(fft)/2)+1:][::-1])) == True
+                    data = np.abs(fft[1:int(num / 2) + 1])  # legacy oh noooooooooooo
+                    datar = np.real(fft[1:int(num / 2) + 1])  # real
+                    datai = np.imag(fft[1:int(num / 2) + 1])  # imaginary
                     data_list[:, i - 1] = data
+                    datar_list[:, i - 1] = datar
+                    datai_list[:, i - 1] = datai
 
                     # update visual plot of data
                     line_current.set_ydata(signal)
@@ -239,11 +249,11 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None)
     # print(f"Maximum peak value at f = {freqs[np.argmax(data_list)]}")
 
     # file management
-    arr = np.zeros([len(freqs), 2])
+    arr = np.zeros([len(freqs), 4])
     arr[:, 0] = freqs
-    # arr[:, 1] = np.nanmean(data_list, 1) / np.mean(np.nanmean(data_list, 1))  # somewhat normalise (mean = 1)
     arr[:, 1] = np.nanmean(data_list, 1)  # NON-normalised
-    # arr[:, 2] = np.nanmin(data_list, 1) / np.mean(np.nanmean(data_list, 1))
+    arr[:, 2] = np.nanmean(datar_list, 1)
+    arr[:, 3] = np.nanmean(datai_list, 1)
     np.savetxt("outputs/output.txt", arr, fmt='%.6g')
 
 
