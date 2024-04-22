@@ -6,8 +6,8 @@ import sys
 from matplotlib.pyplot import close as matplotlibclose
 
 from measurement import measure_sweep, measure_pulse_decay, measure_adaptive
-from automation import AutoTemp, list_devices
-from my_tools import resave_output, resave_auto
+from automation import AutoTemp, list_devices, grab_temp
+from my_tools import resave_output, resave_auto, round_sig_figs
 from aggregation import aggregate, manual_peak_auto  # , colourplot, manual_peak
 # from aggregatestuff import resave
 from fitting import fit  # , find_peaks
@@ -34,16 +34,21 @@ class Main:
         self.run_type = tk.StringVar(self.w, value='single')
         self.repeats = tk.DoubleVar(self.w, value=100)
         self.fit = tk.BooleanVar(self.w, value=True)
+        self.temptrack = tk.BooleanVar(self.w, value=True)
         self.pause = tk.BooleanVar(self.w, value=False)
+        self.running = False
         self.sample_name = tk.StringVar(self.w, value='SAMPLENAME')
-        # self.save_path = tk.StringVar(self.w, value='outputs')
-        self.save_path = tk.StringVar(self.w,
-                                      value=r'C:/Users/mbynmr/OneDrive - The University of Nottingham/Documents/Shared - Mechanical Vibrations of Ultrathin Films/Lab/data/PSY/Vary thickness')
+        sp = 'outputs'
+        sp = r'C:/Users/mbynmr/Links/datastuff/PSY/Vary temperature'
+        self.save_path = tk.StringVar(self.w, value=sp)
         self.t = tk.DoubleVar(self.w, value=0.2)
         self.runs = tk.DoubleVar(self.w, value=33)
         self.freqstep = tk.DoubleVar(self.w, value=10)
         self.boundU = tk.DoubleVar(self.w, value=7000)
         self.boundL = tk.DoubleVar(self.w, value=50)
+        self.tempL = tk.DoubleVar(self.w, value=20)
+        self.tempU = tk.DoubleVar(self.w, value=80)
+        self.temp = tk.DoubleVar(self.w, value=20)
         self.vpp = tk.DoubleVar(self.w, value=10)
         self.dev_signal = tk.StringVar(self.w, value='Dev2')
         self.chan_signal = tk.StringVar(self.w, value='ai0')
@@ -52,6 +57,7 @@ class Main:
 
         # widgets before mainloop
         self.entry_path = tk.Entry(self.w, textvariable=self.save_path, width=68)
+        self.tempbox = tk.Entry(self.w, textvariable=self.temp, width=5)
         self.widgets(*list_devices())
 
         # print command redirect
@@ -60,6 +66,8 @@ class Main:
 
         self.Writer = Writer(self.print_box)
 
+        self.time_start = time.time()
+        self.w.after(600, self.update)
         self.w.mainloop()
 
     def widgets(self, devs, chans):
@@ -75,11 +83,18 @@ class Main:
         tk.Button(self.w, text='Manual peaks', command=self.manual_peak).place(relx=0.57, rely=0.925)
         tk.Button(self.w, text='Close', command=self.close).place(relx=0.025, rely=0.925)
 
-        tk.Label(self.w, text="Audio").place(relx=0.7, rely=0.01)
-        tk.Button(self.w, text='Play raw signal', command=audio_raw).place(relx=0.7, rely=0.075)
-        tk.Button(self.w, text='Play spectra', command=audio_spectra).place(relx=0.7, rely=0.15)
-        tk.Button(self.w, text='Stop audio', command=audio_stop).place(relx=0.7, rely=0.225)
+        tk.Label(self.w, text="Audio").place(relx=0.85, rely=0.01)
+        tk.Button(self.w, text='Play raw signal', command=audio_raw).place(relx=0.85, rely=0.075)
+        tk.Button(self.w, text='Play spectra', command=audio_spectra).place(relx=0.85, rely=0.15)
+        tk.Button(self.w, text='Stop audio', command=audio_stop).place(relx=0.85, rely=0.225)
 
+        tk.Label(self.w, text="Temperature").place(relx=0.625, rely=0.01)
+        tk.Entry(self.w, textvariable=self.tempL, width=5).place(relx=0.625, rely=0.19)
+        tk.Entry(self.w, textvariable=self.tempU, width=5).place(relx=0.725, rely=0.19)
+        tk.Label(self.w, text="< T <").place(relx=0.67, rely=0.19)
+        tk.Label(self.w, text="T:").place(relx=0.625, rely=0.09)
+        self.tempbox.place(relx=0.65, rely=0.09)
+        tk.Checkbutton(self.w, text="track?", variable=self.temptrack).place(relx=0.71, rely=0.09)
         # method options
         tk.Radiobutton(self.w, text='Sweep', variable=self.method, value='S').place(relx=0.25, rely=0.05)
         tk.Radiobutton(self.w, text='Adapt', variable=self.method, value='A').place(relx=0.25, rely=0.125)
@@ -91,12 +106,13 @@ class Main:
         tk.Radiobutton(self.w, text='Autotemp', variable=self.run_type, value='autotemp').place(relx=0.35, rely=0.175)
         tk.Label(self.w, text="Repeats?").place(relx=0.38, rely=0.01)
 
+        tk.Label(self.w, text="After").place(relx=0.5, rely=0.01)
         # toggle fit view after
-        tk.Checkbutton(self.w, text="Fit after?", variable=self.fit).place(relx=0.5, rely=0.075)
-
-        # text entries with labels
+        tk.Checkbutton(self.w, text="Fit after?", variable=self.fit).place(relx=0.48, rely=0.075)
         tk.Entry(self.w, textvariable=self.repeats, width=5).place(relx=0.49, rely=0.2)
         tk.Label(self.w, text="Repeats").place(relx=0.49, rely=0.15)
+
+        # text entries with labels
         tk.Entry(self.w, textvariable=self.sample_name, width=20).place(relx=0.025, rely=0.325)
         tk.Label(self.w, text="Sample name").place(relx=0.025, rely=0.275)
         self.entry_path.place(relx=0.25, rely=0.325)
@@ -135,8 +151,14 @@ class Main:
         else:
             self.pause_text.set('Pause')
 
+    def update(self):
+        if self.temptrack.get() and not self.running:
+            self.temp.set(round_sig_figs(grab_temp(self.dev_temp.get(), self.chan_temp.get()), sig_fig=4))
+        self.w.after(600 - int((time.time() - self.time_start) % 600), self.update)  # update on a tick rate of 100/min
+
     def run(self):
         # get inputs as they are needed and run measurements
+        self.running = True
 
         if self.run_type.get() == "autotemp":
             at = AutoTemp(save_folder_path=self.save_path.get() + "/AutoTemp",
@@ -169,9 +191,12 @@ class Main:
                                   devchan=self.dev_signal.get() + '/' + self.chan_signal.get(), GUI=self)
 
         # save output and fit after finishing run
+        if self.temptrack.get():
+            self.temp.set(round_sig_figs(grab_temp(self.dev_temp.get(), self.chan_temp.get(), num=10000), sig_fig=4))
         self.resave_output()
         if self.fit.get():
             fit(file_name_and_path="outputs/output.txt", copy=True)  # todo cutoff
+        self.running = False
 
     def resave_output(self):
         method = self.method.get()
@@ -180,7 +205,7 @@ class Main:
                 method = method + f'{self.vpp.get():.2g}' + 'V'
             case 'P':
                 method = method + str(int(self.runs.get()))
-        resave_output(method=method, save_path=self.save_path.get(), temperature=20,
+        resave_output(method=method, save_path=self.save_path.get(), temperature=self.temp.get(),
                       sample=self.sample_name.get(), copy=True)
 
     def resave_auto(self):

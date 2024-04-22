@@ -183,6 +183,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None)
         # response = data = y = np.zeros_like(freqs)  # make room in memory
         for i in tqdm(range(runs + 1), total=runs + 1, ncols=52, file=printer):
             complete = False
+            process = True
             while not complete:
 
                 # pause control
@@ -195,15 +196,13 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None)
                 sig_gen.write(f'APPLy:PULSe {1 / t}, MAX')
                 ax_current.set_title(f"Run number: {str(i).zfill(len(str(runs)))} of {runs}")
                 start = time.time()
-                if i > 0:  # do processing of previous signal
+                if i > 0 and process:  # do processing of previous signal
                     response = signal
 
                     # process and store
-                    # todo this matters a lot i think, especially for the piezo peak.
+                    # todo this all matters a lot i think, especially for the piezo peak.
                     fft = np.fft.fft(response - np.mean(response))
-                    # np.allclose(np.real(fft[1:int(len(fft)/2)]), np.real(fft[int(len(fft)/2)+1:][::-1])) == True
-                    # np.allclose(np.imag(fft[1:int(len(fft)/2)]), -np.imag(fft[int(len(fft)/2)+1:][::-1])) == True
-                    data = np.abs(fft[1:int(num / 2) + 1])  # legacy oh noooooooooooo
+                    data = np.abs(fft[1:int(num / 2) + 1])  # POWER SPECTRA (well, almost, it needs to be squared)
                     datar = np.real(fft[1:int(num / 2) + 1])  # real
                     datai = np.imag(fft[1:int(num / 2) + 1])  # imaginary
                     data_list[:, i - 1] = data
@@ -227,6 +226,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None)
                     ax_all.set_ylim((0, ax_lims(y)[1]))
                     fig.canvas.draw()
                     fig.canvas.flush_events()
+                    process = False
                 # elif i == 0:
                 #     time.sleep(sleep_time)
                 if sleep_time - (time.time() - start) > 1e-3 + 0.2e-3:
@@ -235,7 +235,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None)
                     # wait for the cycle after the next cycle
                     sig_gen.write(f'APPLy:PULSe {10}, MAX')
                     sig_gen.write(f'APPLy:PULSe {1 / t}, MAX')
-                    time.sleep(sleep_time)
+                    time.sleep(sleep_time)  # todo do i need this sleep?
                 # read the raw microphone signal
                 signal = task.read(num)
                 if np.argmax(np.abs(signal)) < len(signal) / 3:

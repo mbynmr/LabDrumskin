@@ -10,7 +10,14 @@ from my_tools import resave_output, resave_auto, ax_lims, temp_get, convert_temp
 from fitting import lorentzian
 from IO_setup import set_up_signal_generator_pulse  # , set_up_signal_generator_sine
 # from measurement import measure, measure_adaptive, measure_pulse_decay
-from aggregatestuff import resave
+from aggregation import resave
+
+
+def grab_temp(dev, chan, num=1000):
+    with ni.Task() as task:
+        task.ai_channels.add_ai_voltage_chan(dev + '/' + chan, min_val=-10.0, max_val=10.0)
+        task.timing.cfg_samp_clk_timing(rate=10000, samps_per_chan=10000)
+        return np.mean(temp_get(task.read(num)))
 
 
 def set_up_daq(mode, c1, c2, rate=int(20e3), t=0.2):
@@ -93,7 +100,7 @@ class AutoTemp:
         min_freq = 1 / self.t
         max_freq = self.rate / 2  # = (num / 2) / t  # aka Nyquist frequency
         # self.num_freqs = (self.max_freq - 0) / self.min_freq
-        freqs = np.linspace(start=min_freq, stop=max_freq, num=int((num / 2) - 1), endpoint=True)
+        freqs = np.linspace(start=min_freq, stop=max_freq, num=int(num / 2), endpoint=True)
         data_list = np.ones([len(freqs), repeats]) * np.nan
 
         print("starting autotemp...")
@@ -341,7 +348,7 @@ class AutoTemp:
                 if i > 0:  # do processing of previous signal
                     response = signal
                     # process and store
-                    data_list[:, i - 1] = np.abs(np.fft.fft(response - np.mean(response))[1:int(num / 2)])
+                    data_list[:, i - 1] = np.abs(np.fft.fft(response - np.mean(response))[1:int(num / 2) + 1])
                 if sleep_time - (time.time() - start) > 1e-3:
                     time.sleep(sleep_time - (time.time() - start))  # wait for next cycle
                 else:
