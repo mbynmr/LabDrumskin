@@ -44,10 +44,10 @@ class Main:
         self.t = tk.DoubleVar(self.w, value=0.2)
         self.runs = tk.DoubleVar(self.w, value=33)
         self.freqstep = tk.DoubleVar(self.w, value=10)
-        self.boundU = tk.DoubleVar(self.w, value=7000)
+        self.boundU = tk.DoubleVar(self.w, value=5000)
         self.boundL = tk.DoubleVar(self.w, value=50)
         self.tempL = tk.DoubleVar(self.w, value=20)
-        self.tempU = tk.DoubleVar(self.w, value=80)
+        self.tempU = tk.DoubleVar(self.w, value=100)
         self.temp = tk.DoubleVar(self.w, value=20)
         self.vpp = tk.DoubleVar(self.w, value=10)
         self.dev_signal = tk.StringVar(self.w, value='Dev2')
@@ -95,6 +95,7 @@ class Main:
         tk.Label(self.w, text="T:").place(relx=0.625, rely=0.09)
         self.tempbox.place(relx=0.65, rely=0.09)
         tk.Checkbutton(self.w, text="track?", variable=self.temptrack).place(relx=0.71, rely=0.09)
+        tk.Button(self.w, text='Calibrate', command=self.calibrate).place(relx=0.65, rely=0.25)
         # method options
         tk.Radiobutton(self.w, text='Sweep', variable=self.method, value='S').place(relx=0.25, rely=0.05)
         tk.Radiobutton(self.w, text='Adapt', variable=self.method, value='A').place(relx=0.25, rely=0.125)
@@ -153,7 +154,7 @@ class Main:
 
     def update(self):
         if self.temptrack.get() and not self.running:
-            self.temp.set(round_sig_figs(grab_temp(self.dev_temp.get(), self.chan_temp.get()), sig_fig=4))
+            self.temp.set(round_sig_figs(grab_temp(self.dev_temp.get(), self.chan_temp.get(), num=250), sig_fig=4))
         self.w.after(600 - int((time.time() - self.time_start) % 600), self.update)  # update on a tick rate of 100/min
 
     def run(self):
@@ -170,7 +171,6 @@ class Main:
                 case 'P':
                     # at.auto_temp_pulse(delay=10, temp_step=5, temp_repeats=10, runs=self.runs.get())
                     at.auto_pulse(delay=10, time_between=15, repeats=self.repeats.get(), runs=self.runs.get(), temp='n')
-                    # todo temp inside auto_pulse
                 case 'A':
                     at.auto_temp_adaptive(tolerance=5, start_guess=5e2, start_delta=1e2, temp_step=2.5, temp_repeats=3)
                 case 'S':
@@ -198,6 +198,14 @@ class Main:
             fit(file_name_and_path="outputs/output.txt", copy=True)  # todo cutoff
         self.running = False
 
+    def calibrate(self):
+        self.running = True
+        at = AutoTemp(save_folder_path="outputs", dev_signal=self.dev_signal.get() + '/' + self.chan_signal.get(),
+                      dev_temp=self.dev_temp.get() + '/' + self.chan_temp.get(), sample_name='no', bounds=[0, 1])
+        at.calibrate()
+        at.close()
+        self.running = False
+
     def resave_output(self):
         method = self.method.get()
         match method:
@@ -219,7 +227,7 @@ class Main:
         # resave(save_path + r"\AutoTemp")
 
     def wire(self):
-        wireplot_manager(self.save_path.get(), mode='conc', printer=self.Writer)
+        wireplot_manager(self.save_path.get(), mode='temp', printer=self.Writer)
 
     def select_path(self):
         self.save_path.set(filedialog.askdirectory())

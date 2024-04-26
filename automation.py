@@ -412,26 +412,27 @@ class AutoTemp:
         line, = ax.plot([0, 0], [0, 0], 'k')
         axt = ax.twinx()
         linet, = axt.plot([0, 0], [0, 0], 'r')
-        data = []
+        # plt.xlabel("elapsed time / s")
         temps = []
         realts = []
-        while True:
-            d, t = self.task.read(self.num)
-            data.append(np.mean(d))
+        starttime = time.time()
+        while plt.fignum_exists(fig.number):
+            _, t = self.task.read(self.num)
             temps.append(np.mean(t))
             realt = np.mean(temp_get(t))
             realts.append(realt)
-            plt.title(f"temp voltage is {np.mean(t):.6g}, meaning temp is {realt:.6g} C")
+            plt.title(f"reading is {np.mean(t):.6g}V, meaning temp is {realt:.6g}C")
             # print(np.mean(t))
 
-            line.set_xdata(range(len(temps)))
+            elapsed = time.time() - starttime
+            line.set_xdata(np.linspace(start=0, stop=elapsed, endpoint=True, num=len(temps)))
             line.set_ydata(temps)
-            ax.set_xlim([0, len(temps)])
+            ax.set_xlim([0, elapsed])
             ax.set_ylim(ax_lims(temps))
 
-            linet.set_xdata(range(len(realts)))
+            linet.set_xdata(np.linspace(start=0, stop=elapsed, endpoint=True, num=len(temps)))
             linet.set_ydata(realts)
-            axt.set_xlim([0, len(realts)])
+            axt.set_xlim([0, elapsed])
             axt.set_ylim(ax_lims(realts))
 
             fig.canvas.draw()

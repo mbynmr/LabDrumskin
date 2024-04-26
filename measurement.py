@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 # from scipy.signal import savgol_filter  # smoothing
-import nidaqmx
+import nidaqmx as ni
 from tqdm import tqdm
 import time
 from noisyopt import minimizeCompass
@@ -52,7 +52,7 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=10, devchan=
     ax_current.set_ylim((-12, 12))
     line_all, = ax_all.plot([0, 0], [0, 0], label='Data')
 
-    with nidaqmx.Task() as task:
+    with ni.Task() as task:
         task.ai_channels.add_ai_voltage_chan(devchan, min_val=-10.0, max_val=10.0)
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         # print(chan.ai_rng_high)
@@ -174,7 +174,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None)
     ax_current.set_xlim([times[0], times[-1]])
     ax_current.set_ylim((-12, 12))
 
-    with nidaqmx.Task() as task:
+    with ni.Task() as task:
         task.ai_channels.add_ai_voltage_chan(devchan, min_val=-10.0, max_val=10.0)
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         data_list = np.ones([len(freqs), runs]) * np.nan
@@ -273,7 +273,7 @@ class Measure:
         rate = 10001
         self.num = int(rate * t)
         # self.times = np.arange(self.num) / self.rate
-        self.task = nidaqmx.Task()
+        self.task = ni.Task()
         self.task.ai_channels.add_ai_voltage_chan(devchan, min_val=-10.0, max_val=10.0)
         self.task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=self.num)
         self.sig_gen = set_up_signal_generator_sine()

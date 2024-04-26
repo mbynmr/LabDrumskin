@@ -18,8 +18,18 @@ def wireplot_manager(path, mode=None, printer=None, ax=None):
     if ax is None:
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
-        # ax.set_xlabel('concentration/temperature/thickness/time')
-        ax.set_xlabel('Concentration / %wt')
+        match mode:
+            case 'conc':  # concentration mode
+                xstring = 'Concentration / %wt'
+            case 'thick':  # thickness mode
+                xstring = 'Thickness / nm'
+            case 'temp':  # temperature mode
+                xstring = 'Temperature / C'
+            case 'time':  # time mode
+                xstring = 'Time / s'
+            case _:
+                xstring = 'x axis label'
+        ax.set_xlabel(xstring)
         ax.set_ylabel('Frequency / kHz')
         ax.set_zlabel('ln(Normalised Response)')
 
@@ -30,11 +40,13 @@ def wireplot_manager(path, mode=None, printer=None, ax=None):
         # 2024_03_12_13_11_10_S1V_PSY1_6_20.txt
         if file.split('.')[-1] == 'txt' and len(file.split('_')) >= 10:  # this is specific file name format!!
             x, f, response = data_extractor(path, file, mode)
+            x = np.sqrt(110 - x)  # todo sqrt(Tg - T)
             # normalise
             z = response / np.mean(response)
             z = np.log(z)
             # # alternative to ln(z)?
             # ax.set_zlim([0, 4])
+            ax.set_ylim([0, 4])
             wireplot(ax, x, f * 1e-3, z)
     # ax.set_ylim([0, 5000])
     plt.show()
@@ -53,7 +65,7 @@ def data_extractor(path, file, mode):
             conc = float(file.split('_')[7][3:])
             x = lookup_table * x
         case 'temp':  # temperature mode
-            x = float(file.split('_')[-1]) * x
+            x = float(file.split('_')[-1].split('.txt')[0]) * x
         case 'time':  # time mode
             # deconstruct file name, map from list of str to tuple of int, convert to datetime obj, convert to epoch s
             x = datetime.datetime(*tuple(map(int, file.split('_')[:6]))).timestamp() * x

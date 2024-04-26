@@ -6,7 +6,7 @@ import datetime
 
 
 def play_mic_signal(array=None, t=0.2):
-    sd.default.samplerate = 20000.0  # default is 44100 or 48000 #todo find if i can use this gd
+    sd.default.samplerate = 20000.0  # default is 44100 or 48000
     if array is None:
         array = np.loadtxt("outputs/raw.txt")
     t = array[:, 0]

@@ -108,10 +108,18 @@ def copy2clip(txt):
 
 
 def temp_get(voltage):  # processes an array of voltages to return the corresponding array of temps (can be len = 1)
+    return (((100 - 41.294) / (-1.785 - 0)) * np.asarray(voltage)) + 41.294
+    # 25/04/2024
+    # change 100C from -1.600 to -1.785
+    # change 0 point from measurement of 0C with ice to reported temp when 0V (disconnected) of 41.294C
+    # all important files have been updated but there is a list of data files that haven't, that needs to be automated.
+
+
+def temp_get_old(voltage):
     return (100 / (-1.600 - 1.255)) * (np.asarray(voltage) - 1.255)
 
 
-def temp_get_old(voltage):  # processes an array of voltages to return the corresponding array of temps (can be len = 1)
+def temp_get_oldest(voltage):
     zero = 0.055  # is probably 1 degree, and is from 0.051 to 0.055 pretty much
     hundred = -3.44
     # fifty = -1.62  # approximately
