@@ -64,7 +64,7 @@ def finishstuff(overall_start, save_folder_path, sample_name, method):
     total_t = time.time() - overall_start
     print(f"\rThat took {total_t:.6g} seconds")
     print(f"Or {total_t // (60 * 60)}h {(total_t % (60 * 60)) // 60}m {total_t % 60:.4g}s")
-    resave_auto(save_path=save_folder_path, sample_name=sample_name, method=method)
+    # resave_auto(save_path=save_folder_path, sample_name=sample_name, method=method)  # removed 31/05/2024: fit reliant
 
 
 class Measurer:
@@ -155,7 +155,6 @@ class AutoTemp:
     Automatically measures at given temperatures
 
     files will be saved for each temperature that is measured, and a final file that saves all the peaks and their temps
-
     """
 
     def __init__(self, save_folder_path, dev_signal, dev_temp, vpp=10, sample_name=None, bounds=None, t=None):
@@ -233,7 +232,7 @@ class AutoTemp:
             resave_output(method=f"TP{str(i).zfill(len(str(repeats - 1)))}",
                           save_path=self.save_folder_path + r"\Spectra", temperature="T", sample=self.sample_name)
 
-            fitstuff(data, freqs, bounds, temp, overall_start)
+            # fitstuff(data, freqs, bounds, temp, overall_start)
 
             sleep = time_between * (i + 1) - (time.time() - overall_start)
             if sleep > 0:
@@ -290,7 +289,7 @@ class AutoTemp:
                           save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
                           sample=self.sample_name)
 
-            fitstuff(data, freqs, bounds, temp, overall_start)
+            # fitstuff(data, freqs, bounds, temp, overall_start)
 
         finishstuff(overall_start, self.save_folder_path, self.sample_name, method="P")
 
@@ -365,7 +364,7 @@ class AutoTemp:
                           save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
                           sample=self.sample_name)
 
-            fitstuff(data, freqs, bounds, temp, overall_start, freqstep)
+            # fitstuff(data, freqs, bounds, temp, overall_start, freqstep)
 
         finishstuff(overall_start, self.save_folder_path, self.sample_name, method="S")
 

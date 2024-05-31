@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sounddevice as sd
+import soundfile as sf
 import time
 import datetime
 
@@ -103,3 +104,11 @@ def play_spectra(file, t=0.2):
 def play_stop():
     sd.stop()
     print("audio stopped")
+
+
+def notify_finish():
+    # path = r'C:\Windows\Media\Windows Pop-up Blocked.wav'  # this seemed like a good system file to use 🤣
+    # path = r'C:\Windows\Media\tada.wav'
+    path = r'C:\Windows\Media\Speech On.wav'
+    samples, samplerate = sf.read(path)
+    sd.play(samples, samplerate, blocking=False, loop=False)

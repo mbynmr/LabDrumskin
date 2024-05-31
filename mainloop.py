@@ -8,12 +8,12 @@ from matplotlib.pyplot import close as matplotlibclose
 from measurement import measure_sweep, measure_pulse_decay, measure_adaptive
 from automation import AutoTemp, grab_temp
 from IO_setup import list_devices
-from my_tools import resave_output, resave_auto, round_sig_figs
+from my_tools import resave_output, round_sig_figs
 from aggregation import manual_peak_auto  # , aggregate, colourplot, manual_peak
 from fitting import fit  # , find_peaks
 from timefrequency import fft_magnitude_and_phase, time_frequency_spectrum2electricboogaloo
 from wireplot import wireplot_manager
-from audio import play_mic_signal, play_spectra, play_stop
+from audio import play_mic_signal, play_spectra, play_stop, notify_finish
 
 
 class Main:
@@ -80,7 +80,8 @@ class Main:
         tk.Button(self.w, text='wavelet', command=buttonfunc).place(relx=0.15, rely=0.075)
         tk.Button(self.w, text='3D plot', command=self.wire).place(relx=0.15, rely=0.175)
         tk.Button(self.w, text='Recover (save) last measure', command=self.resave_output).place(relx=0.12, rely=0.925)
-        tk.Button(self.w, text='Force save auto', command=self.resave_auto).place(relx=0.4, rely=0.925)
+        # tk.Button(self.w, text='Force save auto', command=self.resave_auto).place(relx=0.4, rely=0.925)
+        tk.Button(self.w, text='NOTIFY NOISE', command=notify_finish).place(relx=0.4, rely=0.925)
         tk.Button(self.w, text='Manual peaks', command=self.manual_peak).place(relx=0.57, rely=0.925)
         tk.Button(self.w, text='Close', command=self.close).place(relx=0.025, rely=0.925)
 
@@ -182,7 +183,7 @@ class Main:
                     #                    temp_repeats=self.repeats.get(), temp_start=self.tempL.get(),
                     #                    temp_stop=self.tempU.get(), GUI=self)
                     at.auto_sweep(freqstep=self.freqstep.get(), repeats=self.repeats.get(), temp='y')
-            # resave_auto is inside the above functions already
+            self.w.after(600, notify_finish)  # extra notify for autotemp as I may b distracted!
             at.close()
         elif self.run_type.get() == "single":
             match self.method.get():
@@ -203,9 +204,10 @@ class Main:
                     round_sig_figs(grab_temp(self.dev_temp.get(), self.chan_temp.get(), num=10000), sig_fig=4))
             self.resave_output()
             if self.fit.get():
-                fit(file_name_and_path="outputs/output.txt", copy=True)  # todo cutoff
+                self.w.after(1, fit, "outputs/output.txt", True)  # todo cutoff
 
         self.running = False
+        notify_finish()
 
     def calibrate(self):
         self.running = True
@@ -224,10 +226,6 @@ class Main:
                 method = method + str(int(self.runs.get()))
         resave_output(method=method, save_path=self.save_path.get(), temperature=self.temp.get(),
                       sample=self.sample_name.get(), copy=False)
-
-    def resave_auto(self):
-        resave_auto(save_path=self.save_path.get() + "/AutoTemp", sample_name=self.sample_name.get(),
-                    method=self.method.get(), manual=False)
 
     def manual_peak(self):
         manual_peak_auto(save_path=self.save_path.get(), cutoff=[0, 1], sample=self.sample_name.get())

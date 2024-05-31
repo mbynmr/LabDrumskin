@@ -40,7 +40,7 @@ def fit_fast(x, y):
     return lorentzian(x, *values), values
 
 
-def fit(file_name_and_path, cutoff=None, copy=True):
+def fit(file_name_and_path, copy=True, cutoff=None):
     data = np.loadtxt(file_name_and_path)
     data = data[np.argsort(data, axis=0)[:, 0]]  # sort it!
 

@@ -96,16 +96,13 @@ def resave_output(method=None, save_path=None, temperature=None, sample=None, co
     #     fname = fname + "_"
 
 
-def resave_auto(save_path="outputs", sample_name=None, method=None, manual=False):
+def resave_auto(save_path="outputs", sample_name=None, method=None):
     # saves output.txt under another name
 
     end_time = time.localtime()[0:5]
 
     # load (copy) straight away to avoid conflicts and things
-    if not manual:
-        a = np.loadtxt(f"outputs/autotemp.txt")
-    else:
-        m = np.loadtxt(f"outputs/manual.txt")
+    m = np.loadtxt(f"outputs/manual.txt")
 
     if sample_name is None:
         sample_name = input("Sample name ('C0', 'CF4', etc.):")
@@ -115,11 +112,6 @@ def resave_auto(save_path="outputs", sample_name=None, method=None, manual=False
         save_path = input("Write the path to the folder you want to save in (can be 'outputs' or blank)")
 
     # add some test details to the file name
-    if not manual:
-        fname = '_'.join([str(e).zfill(2) for e in end_time]) + f"_T{method}_{sample_name}.txt"
-        print(f"Copying 'autotemp.txt' to file name '{fname}'")
-        np.savetxt(f"{save_path}/{fname}", a, fmt='%.6g')
-        return f"{save_path}/{fname}"
     fname = '_'.join([str(e).zfill(2) for e in end_time]) + f"_T{method}m_{sample_name}.txt"
     print(f"Copying 'manual.txt' to file name '{fname}'")
     np.savetxt(f"{save_path}/{fname}", m, fmt='%.6g')
