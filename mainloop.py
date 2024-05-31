@@ -32,7 +32,7 @@ class Main:
         self.pause_text = tk.StringVar(self.w, value='Pause')
         self.method = tk.StringVar(self.w, value='P')
         self.run_type = tk.StringVar(self.w, value='single')
-        self.repeats = tk.DoubleVar(self.w, value=100)
+        self.repeats = tk.IntVar(self.w, value=1)
         self.fit = tk.BooleanVar(self.w, value=True)
         self.temptrack = tk.BooleanVar(self.w, value=True)
         self.pause = tk.BooleanVar(self.w, value=False)
@@ -42,12 +42,13 @@ class Main:
         sp = r'C:/Users/mbynmr/Links/datastuff/PSY/Vary temperature'
         self.save_path = tk.StringVar(self.w, value=sp)
         self.t = tk.DoubleVar(self.w, value=0.2)
-        self.runs = tk.DoubleVar(self.w, value=33)
+        self.runs = tk.IntVar(self.w, value=33)
         self.freqstep = tk.DoubleVar(self.w, value=10)
-        self.boundU = tk.DoubleVar(self.w, value=5000)
+        self.boundU = tk.DoubleVar(self.w, value=4000)
         self.boundL = tk.DoubleVar(self.w, value=50)
         self.tempL = tk.DoubleVar(self.w, value=20)
         self.tempU = tk.DoubleVar(self.w, value=100)
+        self.tempstep = tk.DoubleVar(self.w, value=2.5)
         self.temp = tk.DoubleVar(self.w, value=20)
         self.vpp = tk.DoubleVar(self.w, value=10)
         self.dev_signal = tk.StringVar(self.w, value='Dev2')
@@ -93,9 +94,10 @@ class Main:
         tk.Entry(self.w, textvariable=self.tempU, width=5).place(relx=0.725, rely=0.19)
         tk.Label(self.w, text="< T <").place(relx=0.67, rely=0.19)
         tk.Label(self.w, text="T:").place(relx=0.625, rely=0.09)
+        tk.Entry(self.w, textvariable=self.tempstep, width=3).place(relx=0.625, rely=0.25)
         self.tempbox.place(relx=0.65, rely=0.09)
         tk.Checkbutton(self.w, text="track?", variable=self.temptrack).place(relx=0.71, rely=0.09)
-        tk.Button(self.w, text='Calibrate', command=self.calibrate).place(relx=0.65, rely=0.25)
+        tk.Button(self.w, text='Calibrate', command=self.calibrate).place(relx=0.68, rely=0.25)
         # method options
         tk.Radiobutton(self.w, text='Sweep', variable=self.method, value='S').place(relx=0.25, rely=0.05)
         tk.Radiobutton(self.w, text='Adapt', variable=self.method, value='A').place(relx=0.25, rely=0.125)
@@ -110,7 +112,7 @@ class Main:
         tk.Label(self.w, text="After").place(relx=0.5, rely=0.01)
         # toggle fit view after
         tk.Checkbutton(self.w, text="Fit after?", variable=self.fit).place(relx=0.48, rely=0.075)
-        tk.Entry(self.w, textvariable=self.repeats, width=5).place(relx=0.49, rely=0.2)
+        tk.Entry(self.w, textvariable=self.repeats, width=3).place(relx=0.49, rely=0.2)
         tk.Label(self.w, text="Repeats").place(relx=0.49, rely=0.15)
 
         # text entries with labels
@@ -127,7 +129,7 @@ class Main:
         tk.Entry(self.w, textvariable=self.boundU, width=5).place(relx=0.7 + x, rely=0.5)
         tk.Label(self.w, text="< f <").place(relx=0.645 + x, rely=0.5)
         tk.Entry(self.w, textvariable=self.runs, width=5).place(relx=0.7 + x, rely=0.6)
-        tk.Label(self.w, text="Repeats (pulse)").place(relx=0.555 + x, rely=0.6)
+        tk.Label(self.w, text="Repeats (pulse)").place(relx=0.555 + x, rely=0.6)  # todo move these to underneath AT
         tk.Entry(self.w, textvariable=self.freqstep, width=5).place(relx=0.7 + x, rely=0.7)
         tk.Label(self.w, text="f step (sweep)").place(relx=0.565 + x, rely=0.7)
         tk.Entry(self.w, textvariable=self.vpp, width=5).place(relx=0.7 + x, rely=0.75)
@@ -169,12 +171,19 @@ class Main:
                           t=self.t.get())
             match self.method.get():
                 case 'P':
-                    # at.auto_temp_pulse(delay=10, temp_step=5, temp_repeats=10, runs=self.runs.get())
-                    at.auto_pulse(delay=10, time_between=15, repeats=self.repeats.get(), runs=self.runs.get(), temp='n')
+                    # at.auto_temp_pulse(delay=10, temp_step=self.tempstep.get(),
+                    #                    temp_repeats=self.repeats.get(), runs=self.runs.get())
+                    at.auto_pulse(time_between=15, repeats=self.repeats.get(), runs=self.runs.get(), temp='y')
                 case 'A':
-                    at.auto_temp_adaptive(tolerance=5, start_guess=5e2, start_delta=1e2, temp_step=2.5, temp_repeats=3)
+                    at.auto_temp_adaptive(tolerance=5, start_guess=5e2, start_delta=1e2, temp_step=self.tempstep.get(),
+                                          temp_repeats=self.repeats.get())
                 case 'S':
-                    at.auto_temp_sweep(freqstep=50, temp_step=2.5, temp_repeats=2)
+                    # at.auto_temp_sweep(freqstep=self.freqstep.get(), temp_step=self.tempstep.get(),
+                    #                    temp_repeats=self.repeats.get(), temp_start=self.tempL.get(),
+                    #                    temp_stop=self.tempU.get(), GUI=self)
+                    at.auto_sweep(freqstep=self.freqstep.get(), temp_step=self.tempstep.get(),
+                                  repeats=self.repeats.get(), GUI=self)
+            # resave_auto is inside the above functions already
             at.close()
         elif self.run_type.get() == "single":
             match self.method.get():
@@ -189,13 +198,14 @@ class Main:
                     measure_sweep(freq=[self.boundL.get(), self.boundU.get()], freqstep=self.freqstep.get(),
                                   t=self.t.get(), vpp=self.vpp.get(),
                                   devchan=self.dev_signal.get() + '/' + self.chan_signal.get(), GUI=self)
+            # save output and fit after finishing single run
+            if self.temptrack.get():
+                self.temp.set(
+                    round_sig_figs(grab_temp(self.dev_temp.get(), self.chan_temp.get(), num=10000), sig_fig=4))
+            self.resave_output()
+            if self.fit.get():
+                fit(file_name_and_path="outputs/output.txt", copy=True)  # todo cutoff
 
-        # save output and fit after finishing run
-        if self.temptrack.get():
-            self.temp.set(round_sig_figs(grab_temp(self.dev_temp.get(), self.chan_temp.get(), num=10000), sig_fig=4))
-        self.resave_output()
-        if self.fit.get():
-            fit(file_name_and_path="outputs/output.txt", copy=True)  # todo cutoff
         self.running = False
 
     def calibrate(self):
@@ -214,15 +224,14 @@ class Main:
             case 'P':
                 method = method + str(int(self.runs.get()))
         resave_output(method=method, save_path=self.save_path.get(), temperature=self.temp.get(),
-                      sample=self.sample_name.get(), copy=True)
+                      sample=self.sample_name.get(), copy=False)
 
     def resave_auto(self):
         resave_auto(save_path=self.save_path.get() + "/AutoTemp", sample_name=self.sample_name.get(),
                     method=self.method.get(), manual=False)
 
     def manual_peak(self):
-        manual_peak_auto(save_path=self.save_path.get() + "/AutoTemp",
-                         cutoff=[self.boundL.get() / 1e4, self.boundU.get() / 1e4], sample=self.sample_name.get())
+        manual_peak_auto(save_path=self.save_path.get(), cutoff=[0, 1], sample=self.sample_name.get())
         # # manual_peak(save_path=save_path + r"\AutoTemp", cutoff=[0.05, 0.6])
         # resave(save_path + r"\AutoTemp")
 

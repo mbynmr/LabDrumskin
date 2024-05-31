@@ -1,3 +1,4 @@
+import io
 import numpy as np
 import matplotlib.pyplot as plt
 import nidaqmx as ni
@@ -42,11 +43,44 @@ def list_devices():
     return [d.name for d in ni.system.System.local().devices], ['ai0', 'ai1', 'ai2', 'ai3', 'ai4', 'ai5', 'ai6', 'ai7']
 
 
+def fitstuff(data, freqs, bounds, temp, overall_start, freqstep=5):
+    # fit
+    # (cursed function) (why is this even here for autotemp? mayb i just remove it.)
+    # todo remove this function at some point plz
+    try:
+        out = curve_fit(f=lorentzian, xdata=freqs, ydata=data, bounds=([0, bounds[0], 0, 0],
+                                                                       [1e5, bounds[-1], 2, 1e5]))
+        value, error = out[0], out[1]
+        error = np.sqrt(np.diag(error))
+        if error[1] > 2e1:  # todo tweak
+            # print("curve_fit returned a value with too low confidence")
+            raise RuntimeError
+        print(f"\rTemp {temp:.3g}, peak at {value[1]:.6g} pm {error[1]:.2g} Hz", end='')
+    except RuntimeError:
+        value = [0, freqs[np.argmax(data)]]
+        error = [0, freqstep * 2]
+        # print(f"The curve_fit failed. Using fmax: {value[1]:.6g} Hz and error will be {error[1]:.2g} Hz")
+        print(f"\rTemp {temp:.3g}, peak at {value[1]:.6g} pm {error[1]:.2g} Hz - curve_fit failed", end='')
+    with open("outputs/autotemp.txt", "a") as autotemp:
+        autotemp.write(f"{time.time() - overall_start:.6g}  {value[1]:.6g} {error[1]:.6g} {temp:.6g}\n")
+
+
+def finishstuff(overall_start, save_folder_path, sample_name, method):
+    total_t = time.time() - overall_start
+    print(f"\rThat took {total_t:.6g} seconds")
+    print(f"Or {total_t // (60 * 60)}h {(total_t % (60 * 60)) // 60}m {total_t % 60:.4g}s")
+    resave_auto(save_path=save_folder_path, sample_name=sample_name, method=method)
+
+
 class AutoTemp:
     """
     Automatically measures at given temperatures
 
     files will be saved for each temperature that is measured, and a final file that saves all the peaks and their temps
+
+    If I ever have the time I should split this into 2 classes: AutoTemp for managing and Measurer for measuring. The
+    DAQ card and signal generator should only be in Measurer, where a sweep/pulse method can be called. AutoTemp will
+    then manage when each measurement is called from Measurer. At the moment AutoTemp is just a big mess.
     """
 
     def __init__(self, save_folder_path, dev_signal, dev_temp, vpp=5, sample_name=None, bounds=None, t=None):
@@ -78,7 +112,7 @@ class AutoTemp:
         self.vpp = vpp
         self.sig_gen.write("OUTPut OFF")
 
-    def auto_pulse(self, bounds=None, delay=10, time_between=30, repeats=300, runs=33, temp=None, **kwargs):
+    def auto_pulse(self, bounds=None, time_between=30, repeats=300, runs=33, temp=None, **kwargs):
         if temp is None:
             temp = input("Do you want temperature recordings? 'Y' for yes:")
         if temp == 'y' or temp == 'Y':
@@ -90,7 +124,7 @@ class AutoTemp:
         cutoff = np.divide(bounds, 10e3)
         repeats = int(repeats)
         if repeats < 2:
-            repeats = 2
+            repeats = int(2)
 
         sleep_time = 0.135
         # times = np.arange(start=0, stop=self.t, step=(1 / rate))
@@ -112,7 +146,7 @@ class AutoTemp:
         overall_start = time.time()
         for i in range(repeats):
             print(f"\r {i} of {repeats}", end='')
-            data = self.measure_pulse(freqs=freqs, delay=delay, sleep_time=sleep_time, num=num, runs=runs)
+            data = self.measure_pulse(freqs=freqs, sleep_time=sleep_time, num=num, runs=runs)
 
             # data/file management
             data_list[:, i] = data
@@ -123,41 +157,15 @@ class AutoTemp:
             resave_output(method=f"TP{str(i).zfill(len(str(repeats - 1)))}",
                           save_path=self.save_folder_path + r"\Spectra", temperature="T", sample=self.sample_name)
 
-            # fit
-            try:
-                out = curve_fit(f=lorentzian,
-                                xdata=freqs[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])],
-                                ydata=data[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])],
-                                bounds=([0, bounds[0], 0, 0], [1e5, bounds[1], 2, 1e5]))
-                value, error = out[0], out[1]
-                error = np.sqrt(np.diag(error))
-                if error[1] > 2e1:  # todo tweak
-                    # print("curve_fit returned a value with too low confidence")
-                    raise RuntimeError
-                print(f"\rPeak at {value[1]:.6g} pm {error[1]:.2g} Hz, i = {i} of {repeats}", end='')
-            except RuntimeError:
-                f = freqs[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])]
-                d = data[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])]
-                value = [0, f[np.argmax(d)]]
-                error = [0, 5 * 2]
-                # print(f"The curve_fit failed. Using fmax: {value[1]:.6g} Hz and error will be {error[1]:.2g} Hz")
-                print(f"\rPeak at {value[1]:.6g} pm {error[1]:.2g} Hz - curve_fit failed, i = {i} of {repeats}", end='')
-            if temp != 0:
-                temp = input("\rCurrent temperature:")
-            with open("outputs/autotemp.txt", "a") as autotemp:
-                autotemp.write(f"{time.time() - overall_start:.6g} {value[1]:.6g} {error[1]:.6g} {temp:.6g}\n")
+            fitstuff(data, freqs, bounds, temp, overall_start)
 
             sleep = time_between * (i + 1) - (time.time() - overall_start)
             if sleep > 0:
                 time.sleep(sleep)
 
-        total_t = time.time() - overall_start
-        print(f"\rThat took {total_t:.6g} seconds")
-        print(f"Or {total_t // (60 * 60)}h {(total_t % (60 * 60)) // 60}m {total_t % 60:.4g}s")
-
+        finishstuff(overall_start, self.save_folder_path, self.sample_name, method="P")
         fname = '_'.join([str(e).zfill(2) for e in time.localtime()[0:5]]) + f"_TP_{self.sample_name}.txt"
         # np.savetxt(self.save_folder_path + "/" + fname, np.loadtxt(f"outputs/autotemp.txt"))
-        resave_auto(self.save_folder_path, sample_name=self.sample_name, method='P', manual=False)
         resave(self.save_folder_path, name=fname)
 
     def auto_temp_pulse(self, delay=20, time_between=30, runs=100, **kwargs):
@@ -191,7 +199,7 @@ class AutoTemp:
 
             self.task.close()
             self.task, num = set_up_daq(mode='single', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)
-            data = self.measure_pulse(freqs=freqs, delay=delay, sleep_time=sleep_time, num=num, runs=runs)
+            data = self.measure_pulse(freqs=freqs, sleep_time=sleep_time, num=num, runs=runs)
             self.task.close()
             self.task = set_up_daq(mode='dual', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)[0]
             temps[i] = (float(temp) + float(np.nanmean(temp_get(self.task.read(self.num)[1])))) / 2
@@ -206,36 +214,79 @@ class AutoTemp:
                           save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
                           sample=self.sample_name)
 
-            # fit
-            try:
-                out = curve_fit(f=lorentzian,
-                                xdata=freqs[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])],
-                                ydata=data[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])],
-                                bounds=([0, bounds[0], 0, 0], [1e5, bounds[1], 2, 1e5]))
-                value, error = out[0], out[1]
-                error = np.sqrt(np.diag(error))
-                if error[1] > 2e1:  # todo tweak
-                    # print("curve_fit returned a value with too low confidence")
-                    raise RuntimeError
-                print(f"\rTemp {temp:.3g}, peak at {value[1]:.6g} pm {error[1]:.2g} Hz, "
-                      f"expected temp {temp_should_be}", end='')
-            except RuntimeError:
-                f = freqs[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])]
-                d = data[int(len(data) * cutoff[0]):int(len(data) * cutoff[1])]
-                value = [0, f[np.argmax(d)]]
-                error = [0, 5 * 2]
-                # print(f"The curve_fit failed. Using fmax: {value[1]:.6g} Hz and error will be {error[1]:.2g} Hz")
-                print(f"\rTemp {temp:.3g}, peak at {value[1]:.6g} pm {error[1]:.2g} Hz - curve_fit failed, "
-                      f"expected temp {temp_should_be}", end='')
-            with open("outputs/autotemp.txt", "a") as autotemp:
-                autotemp.write(f"{time.time() - overall_start:.6g} {value[1]:.6g} {error[1]:.6g} {temp:.6g}\n")
+            fitstuff(data, freqs, bounds, temp, overall_start)
 
-        total_t = time.time() - overall_start
-        print(f"\rThat took {total_t:.6g} seconds")
-        print(f"Or {total_t // (60 * 60)}h {(total_t % (60 * 60)) // 60}m {total_t % 60:.4g}s")
-        resave_auto(save_path=self.save_folder_path, sample_name=self.sample_name, method="P")
+        finishstuff(overall_start, self.save_folder_path, self.sample_name, method="P")
 
-    def auto_temp_sweep(self, freqstep=5, **kwargs):
+    def measure_pulse(self, freqs, sleep_time, num, runs=33):
+        # returns response to each frequency and the average temperature during the measurement
+        runs = int(runs)
+
+        self.sig_gen.write("OUTPut ON")
+        data_list = np.ones([len(freqs), runs]) * np.nan
+
+        for i in range(runs + 1):
+            complete = False
+            while not complete:
+                # reset signal generator output to get to a known timing
+                self.sig_gen.write(f'APPLy:PULSe {10}, MAX')
+                self.sig_gen.write(f'APPLy:PULSe {1 / self.t}, MAX')
+                start = time.time()
+                if i > 0:  # do processing of previous signal
+                    response = signal
+                    # process and store
+                    data_list[:, i - 1] = np.abs(np.fft.fft(response - np.mean(response))[1:int(num / 2) + 1])
+                # todo look into the timings... I can surely speed this up?
+                if sleep_time - (time.time() - start) > 1e-3:
+                    time.sleep(sleep_time - (time.time() - start))  # wait for next cycle
+                else:
+                    # wait for the cycle after the next cycle
+                    self.sig_gen.write(f'APPLy:PULSe {10}, MAX')
+                    self.sig_gen.write(f'APPLy:PULSe {1 / self.t}, MAX')
+                    time.sleep(sleep_time)
+                # read the microphone signal
+                signal = self.task.read(num)
+                if np.argmax(np.abs(signal)) < len(signal) / 3:
+                    complete = True
+        self.sig_gen.write("OUTPut OFF")
+        return np.nanmean(data_list, 1)
+
+    def auto_sweep(self, freqstep=5, repeats=None, GUI=None, **kwargs):
+        print("starting autotemp...")
+
+        repeats = int(repeats)
+        if repeats < 2:
+            repeats = int(2)
+
+        bounds = self.bounds
+        freqs = np.sort(np.linspace(start=bounds[0], stop=bounds[-1],
+                                    num=int(1 + abs(bounds[-1] - bounds[0]) / freqstep)))
+        data_list = np.ones([len(freqs), repeats]) * np.nan
+
+        overall_start = time.time()
+        with open("outputs/autotemp.txt", "w") as autotemp:  # reset the file
+            pass
+        for i, temp_should_be in enumerate(range(repeats)):
+            print(f"\r {i} of {repeats}", end='')
+
+            data, temp = self.measure_sweep(freqs)
+            data_list[:, i] = data
+            # temps[i] = float(temp)
+
+            # file management
+            arr = np.zeros([len(data), 2])
+            arr[:, 0] = freqs
+            arr[:, 1] = data
+            np.savetxt("outputs/output.txt", arr)
+            resave_output(method=f"TS{str(i).zfill(len(str(repeats - 1)))}",
+                          save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
+                          sample=self.sample_name)
+
+            fitstuff(data, freqs, bounds, temp, overall_start, freqstep)
+
+        finishstuff(overall_start, self.save_folder_path, self.sample_name, method="S")
+
+    def auto_temp_sweep(self, freqstep=5, GUI=None, **kwargs):
         print("starting autotemp...")
 
         bounds = self.bounds
@@ -250,7 +301,7 @@ class AutoTemp:
             pass
         for i, temp_should_be in enumerate(required_temps):
             print(f"\r {i} of {len(required_temps)}", end='')
-            temp = self.temp_move_on(temp_should_be, up)
+            temp = self.temp_move_on(temp_should_be, up, GUI)
 
             data, temp = self.measure_sweep(freqs)
             data_list[:, i] = data
@@ -261,32 +312,30 @@ class AutoTemp:
             arr[:, 0] = freqs
             arr[:, 1] = data
             np.savetxt("outputs/output.txt", arr)
-            resave_output(method=f"TS{str(i).zfill(len(str(len(required_temps))))}",
+            resave_output(method=f"TS{str(i).zfill(len(str(len(required_temps) - 1)))}",
                           save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
                           sample=self.sample_name)
 
-            # fit
-            try:
-                out = curve_fit(f=lorentzian, xdata=freqs, ydata=data, bounds=([0, bounds[0], 0, 0],
-                                                                               [1e5, bounds[-1], 2, 1e5]))
-                value, error = out[0], out[1]
-                error = np.sqrt(np.diag(error))
-                if error[1] > 2e1:  # todo tweak
-                    # print("curve_fit returned a value with too low confidence")
-                    raise RuntimeError
-                print(f"\rTemp {temp:.3g}, peak at {value[1]:.6g} pm {error[1]:.2g} Hz", end='')
-            except RuntimeError:
-                value = [0, freqs[np.argmax(data)]]
-                error = [0, freqstep * 2]
-                # print(f"The curve_fit failed. Using fmax: {value[1]:.6g} Hz and error will be {error[1]:.2g} Hz")
-                print(f"\rTemp {temp:.3g}, peak at {value[1]:.6g} pm {error[1]:.2g} Hz - curve_fit failed", end='')
-            with open("outputs/autotemp.txt", "a") as autotemp:
-                autotemp.write(f"{time.time() - overall_start:.6g}  {value[1]:.6g} {error[1]:.6g} {temp:.6g}\n")
+            fitstuff(data, freqs, bounds, temp, overall_start, freqstep)
 
-        total_t = time.time() - overall_start
-        print(f"\rThat took {total_t:.6g} seconds")
-        print(f"Or {total_t // (60 * 60)}h {(total_t % (60 * 60)) // 60}m {total_t % 60:.4g}s")
-        resave_auto(save_path=self.save_folder_path, sample_name=self.sample_name, method="S")
+        finishstuff(overall_start, self.save_folder_path, self.sample_name, method="S")
+
+    def measure_sweep(self, freqs):  # returns response to each frequency and the average temperature during measurement
+        self.sig_gen.write("OUTPut ON")
+        data = np.ones([len(freqs)]) * np.nan
+        temps = np.ones([len(freqs)]) * np.nan
+
+        a = np.arange(len(freqs))
+        np.random.default_rng().shuffle(a)
+        for e in a:
+            self.sig_gen.write(f'APPLy:SINusoid {freqs[e]}, {self.vpp}')
+            time.sleep(0.05)
+            signal, temp = self.task.read(self.num)
+            data[e] = np.sqrt(np.mean(np.square(signal)))  # calculate RMS of signal
+            temps[e] = np.mean(temp)
+
+        self.sig_gen.write("OUTPut OFF")
+        return data, temp_get(np.nanmean(temps))
 
     def auto_temp_adaptive(self, vpp=5, tolerance=5, start_guess=1e3, start_delta=1e3, **kwargs):
         bounds = self.bounds
@@ -320,7 +369,7 @@ class AutoTemp:
             np.savetxt("outputs/output.txt", np.loadtxt("outputs/output_a.txt"), fmt='%.6g')
             self.out = open("outputs/output_a.txt", "w")
             resave_output(method=f"TA{str(i).zfill(len(str(len(required_temps))))}",
-                          save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
+                          save_path=self.save_folder_path + r"/Spectra", temperature=convert_temp_to_tempstr(temp),
                           sample=self.sample_name)
 
             print(f"Temp {temp:.3g}, peak at {res.x[0]:.6g} pm {tolerance /2:.2g} Hz after"
@@ -328,57 +377,7 @@ class AutoTemp:
 
             with open("outputs/autotemp.txt", "a") as autotemp:
                 autotemp.write(f"{time.time() - overall_start:.6g} {res.x[0]:.6g} {tolerance / 2:.6g} {temp:.6g}\n")
-        print(f"That took {time.time() - overall_start:.4g} seconds")
-        resave_auto(save_path=self.save_folder_path, sample_name=self.sample_name, method="A")
-
-    def measure_pulse(self, freqs, delay, sleep_time, num, runs=33):
-        # returns response to each frequency and the average temperature during the measurement
-        runs = int(runs)
-
-        self.sig_gen.write("OUTPut ON")
-        data_list = np.ones([len(freqs), runs]) * np.nan
-
-        for i in range(runs + 1):
-            complete = False
-            while not complete:
-                # reset signal generator output to get to a known timing
-                self.sig_gen.write(f'APPLy:PULSe {10}, MAX')
-                self.sig_gen.write(f'APPLy:PULSe {1 / self.t}, MAX')
-                start = time.time()
-                if i > 0:  # do processing of previous signal
-                    response = signal
-                    # process and store
-                    data_list[:, i - 1] = np.abs(np.fft.fft(response - np.mean(response))[1:int(num / 2) + 1])
-                if sleep_time - (time.time() - start) > 1e-3:
-                    time.sleep(sleep_time - (time.time() - start))  # wait for next cycle
-                else:
-                    # wait for the cycle after the next cycle
-                    self.sig_gen.write(f'APPLy:PULSe {10}, MAX')
-                    self.sig_gen.write(f'APPLy:PULSe {1 / self.t}, MAX')
-                    time.sleep(sleep_time)
-                # read the microphone signal
-                signal = self.task.read(num)
-                if np.argmax(np.abs(signal)) < len(signal) / 3:
-                    complete = True
-        self.sig_gen.write("OUTPut OFF")
-        return np.nanmean(data_list, 1)
-
-    def measure_sweep(self, freqs):  # returns response to each frequency and the average temperature during measurement
-        self.sig_gen.write("OUTPut ON")
-        data = np.ones([len(freqs)]) * np.nan
-        temps = np.ones([len(freqs)]) * np.nan
-
-        a = np.arange(len(freqs))
-        np.random.default_rng().shuffle(a)
-        for e in a:
-            self.sig_gen.write(f'APPLy:SINusoid {freqs[e]}, {self.vpp}')
-            time.sleep(0.05)
-            signal, temp = self.task.read(self.num)
-            data[e] = np.sqrt(np.mean(np.square(signal)))  # calculate RMS of signal
-            temps[e] = np.mean(temp)
-
-        self.sig_gen.write("OUTPut OFF")
-        return data, temp_get(np.nanmean(temps))
+        finishstuff(overall_start, self.save_folder_path, self.sample_name, method="A")
 
     def measure_adaptive(self, f=None, i=[0]):
         if f is None:
@@ -403,8 +402,10 @@ class AutoTemp:
     def close(self):
         self.task.close()
         self.sig_gen.write("OUTPut OFF")
-        self.sig_gen.close()
-        self.out.close()
+        # self.sig_gen.close()  # todo why was this here!?
+        if (isinstance(self.out, io.TextIOBase) or isinstance(self.out, io.BufferedIOBase) or
+                isinstance(self.out, io.RawIOBase) or isinstance(self.out, io.IOBase)):  # if self.out is an open file
+            self.out.close()
 
     def calibrate(self):
         plt.ion()
@@ -465,12 +466,15 @@ class AutoTemp:
             np.linspace(start=temp_start, stop=temp_stop, num=int(1 + abs(temp_stop - temp_start) / temp_step)),
             repeats=temp_repeats), temp_start < temp_stop
 
-    def temp_move_on(self, temp_should_be, up):
+    def temp_move_on(self, temp_should_be, up, GUI=None):
         # only move on to the next measurements after the temperature has been reached
         temp = np.nanmean(temp_get(self.task.read(self.num)[1]))
         while (up and temp < temp_should_be - 0.25) or (not up and temp > temp_should_be + 0.25):
             # repeatedly check if the temp is high/low enough to move on (if it is not enough it will stay here)
-            time.sleep(5)
+            if GUI is None:
+                time.sleep(5)
+            else:
+                GUI.w.after(5000)  # todo does this work? yes, but it is no better than sleep.
 
             # printing current temp (trying to avoid annoying formatting)
             if len(f'{temp:.4g}'.split('.')[-1]) == 2 and len(f'{temp:.4g}') == 5:

@@ -16,13 +16,43 @@ def round_sig_figs(x, sig_fig, method='d'):
             return np.ceil(x * mags) / mags
 
 
+# def ax_lims_wip(data):
+#     # return cand be fed directly into ax.set_ylim() or ax.set_xlim()
+#     if len(data) < 2:
+#         return [min(data) - 1, max(data) + 1]
+#
+#     # todo edge cases: e.g. where (max - min) = 1000 exactly.
+#     mag = int(0)
+#     if np.isclose(max(data), min(data), rtol=0, atol=10 ** mag):
+#         up = False
+#     else:
+#         up = True
+#
+#     while bool(np.isclose(max(data), min(data), rtol=0, atol=10 ** mag)) ^ up:
+#         if up:
+#             mag += 1
+#         else:
+#             mag -= 1
+#
+#     # mag so far is the magnitude of the first difference between the numbers.
+#     # sig is how many sig figs we need to make mag visible in the number.
+#     # [101, 105] (diff 4) mag is 1, sig is 3+1
+#     # [101, 205] (diff 204) mag is 3, sig is 1+1
+#
+#     if up:
+#         sig = mag - 1
+#     sig = abs(mag)
+#     return (round_sig_figs(min(data), sig, 'f'),
+#             round_sig_figs(max(data), sig, 'c'))
+
+
 def ax_lims(data):
     # make axis limits with clearance on both sides even after being rounded to 2 significant figures
     # 5% of the range between the max and min is the minimum clearance
     # return cand be fed directly into ax.set_ylim() or ax.set_xlim()
-    diff = (max(data) - min(data)) * 5 / 100
-    return (round_sig_figs(min(data) - diff, 2, 'f'),
-            round_sig_figs(max(data) + diff, 2, 'c'))
+    diff = (max(data) - min(data)) * 2.5 / 100
+    return (round_sig_figs(min(data) - diff, 4, 'f'),
+            round_sig_figs(max(data) + diff, 4, 'c'))
 
 
 def resave_output(method=None, save_path=None, temperature=None, sample=None, copy=False):

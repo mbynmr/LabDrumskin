@@ -138,10 +138,16 @@ def manual_peak_auto(save_path, cutoff=None, sample=None, printer=None):
         sample = input("enter sample name you are looking at plz:")
     if cutoff is None:
         cutoff = [0, 1]
-    spectra_path = save_path + "/Spectra"
-
     if printer is None:
         printer = sys.stderr
+    if "/AutoTemp" not in save_path:
+        save_path = save_path + "/AutoTemp"
+        if "/Spectra" not in save_path:
+            spectra_path = save_path + "/Spectra"
+        else:
+            spectra_path = save_path
+    else:
+        spectra_path = save_path
 
     files = os.listdir(spectra_path)
     files.sort()
@@ -154,11 +160,11 @@ def manual_peak_auto(save_path, cutoff=None, sample=None, printer=None):
 
     skip = 0
     for i, file in tqdm(enumerate(files), total=len(files), file=printer, ncols=42):
-        # if i % 10 != 0:  # remove this for a big run plz
-        #     continue
+        # sample name from the file name
         # 2023_06_22_12_42_26_TP211_PSY2_4_81.12.txt
-        sample_name = file.split('.txt')[0].split('_TP')[-1].split('_')[1:-1]  # sample name from the file name
-        sample_name = "_".join(sample_name)
+        # sample_name = "_".join(file.split('.txt')[0].split('_T')[-1].split('_')[1:-1])
+        # 2024_05_22_12_30_42_TS01_PSY125_12_80.34.txt
+        sample_name = '_'.join(file.split('.txt')[0].split('_T')[-1].split('_')[1:3])
         if sample_name != sample:
             skip += 1
             continue
@@ -177,8 +183,12 @@ def manual_peak_auto(save_path, cutoff=None, sample=None, printer=None):
         xy = xy[int(len(xy[:, 0]) * cutoff[0]):int(len(xy[:, 0]) * cutoff[1]), ...]
         fig, ax = plt.subplots()  # figsize=(16, 9)
         plt.get_current_fig_manager().full_screen_toggle()
-        ax.plot(xy[:, 0], xy[:, 1], '.', picker=10)
-        ax.set_title(f"picker {i - skip} of {len(files) - skip}")
+        ax.plot(xy[:, 0], xy[:, 1], '-D',  c='blue', mfc='red', mec='k', picker=10)
+        # markeredgecolor       mec     color
+        # markeredgewidth       mew     float
+        # markerfacecolor       mfc     color
+        # markerfacecoloralt    mfcalt  color
+        ax.set_title(f"picker {i - skip} of {len(files) - skip} (roughly)")
         fig.canvas.callbacks.connect('pick_event', on_pick)
         plt.draw()
         with open("outputs/manual.txt", 'w') as m:
