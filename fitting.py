@@ -5,7 +5,7 @@ from scipy.signal import argrelextrema
 # from tqdm import tqdm
 
 # from analysis import peak_finder_with_derivatives
-from my_tools import copy2clip
+# from my_tools import copy2clip
 
 
 def lorentzian(x, gamma, x0, c, a):

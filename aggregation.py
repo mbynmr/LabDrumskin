@@ -140,9 +140,9 @@ def manual_peak_auto(save_path, cutoff=None, sample=None, printer=None):
         cutoff = [0, 1]
     if printer is None:
         printer = sys.stderr
-    if "/AutoTemp" not in save_path:
+    if "/AutoTemp" not in save_path and r"\AutoTemp" not in save_path:
         save_path = save_path + "/AutoTemp"
-        if "/Spectra" not in save_path:
+        if "/Spectra" not in save_path and r"\Spectra" not in save_path:
             spectra_path = save_path + "/Spectra"
         else:
             spectra_path = save_path

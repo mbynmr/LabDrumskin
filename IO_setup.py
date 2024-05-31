@@ -1,4 +1,10 @@
 import pyvisa
+import nidaqmx as ni
+
+
+def list_devices():
+    # Lists all connected devices to the system, and their channels for format 'Dev1/ai0'
+    return [d.name for d in ni.system.System.local().devices], ['ai0', 'ai1', 'ai2', 'ai3', 'ai4', 'ai5', 'ai6', 'ai7']
 
 
 def set_up_signal_generator_pulse():

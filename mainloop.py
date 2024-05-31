@@ -6,10 +6,10 @@ import sys
 from matplotlib.pyplot import close as matplotlibclose
 
 from measurement import measure_sweep, measure_pulse_decay, measure_adaptive
-from automation import AutoTemp, list_devices, grab_temp
+from automation import AutoTemp, grab_temp
+from IO_setup import list_devices
 from my_tools import resave_output, resave_auto, round_sig_figs
-from aggregation import aggregate, manual_peak_auto  # , colourplot, manual_peak
-# from aggregatestuff import resave
+from aggregation import manual_peak_auto  # , aggregate, colourplot, manual_peak
 from fitting import fit  # , find_peaks
 from timefrequency import fft_magnitude_and_phase, time_frequency_spectrum2electricboogaloo
 from wireplot import wireplot_manager
@@ -181,8 +181,7 @@ class Main:
                     # at.auto_temp_sweep(freqstep=self.freqstep.get(), temp_step=self.tempstep.get(),
                     #                    temp_repeats=self.repeats.get(), temp_start=self.tempL.get(),
                     #                    temp_stop=self.tempU.get(), GUI=self)
-                    at.auto_sweep(freqstep=self.freqstep.get(), temp_step=self.tempstep.get(),
-                                  repeats=self.repeats.get(), GUI=self)
+                    at.auto_sweep(freqstep=self.freqstep.get(), repeats=self.repeats.get(), temp='y')
             # resave_auto is inside the above functions already
             at.close()
         elif self.run_type.get() == "single":

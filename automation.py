@@ -38,11 +38,6 @@ def set_up_daq(mode, c1, c2, rate=int(20e3), t=0.2):
     return task, num
 
 
-def list_devices():
-    # Lists all connected devices to the system, and their channels for format 'Dev1/ai0'
-    return [d.name for d in ni.system.System.local().devices], ['ai0', 'ai1', 'ai2', 'ai3', 'ai4', 'ai5', 'ai6', 'ai7']
-
-
 def fitstuff(data, freqs, bounds, temp, overall_start, freqstep=5):
     # fit
     # (cursed function) (why is this even here for autotemp? mayb i just remove it.)
@@ -72,18 +67,98 @@ def finishstuff(overall_start, save_folder_path, sample_name, method):
     resave_auto(save_path=save_folder_path, sample_name=sample_name, method=method)
 
 
+class Measurer:
+    """
+    AutoTemp calls this to do measurements
+    """
+
+    def __init__(self, out, task, num, sig_gen, vpp):
+        self.out = out
+        self.task = task
+        self.num = num
+        self.sig_gen = sig_gen
+        self.vpp = vpp
+
+    def measure_adaptive(self, f=None, i=[0]):
+        if f is None:
+            a = i[0]
+            i[0] = 0  # reset counter
+            return a
+        self.sig_gen.write(f'APPLy:SINusoid {float(f)}, {self.vpp}')  # set the signal generator to the frequency f
+        time.sleep(0.05)
+        signal, temps = self.task.read(self.num)
+        rms = np.sqrt(np.mean(np.square(signal)))  # read signal from microphone then calculate RMS
+        self.out.write(f"{float(f):.6g} {rms:.6g} {temp_get(np.mean(temps)):.6g}\n")
+        if i[0] >= 2e2:
+            # credit for this neat mutable argument call counter trick goes to https://stackoverflow.com/a/23160861
+            print("minimizeCompass got stuck so is being restarted")
+            self.out.close()
+            self.out = open("outputs/output_a.txt", 'w')  # reopen (and empty) the output file
+            i[0] = 0
+            raise ExitException
+        i[0] += 1
+        return -rms
+
+    def measure_pulse(self, freqs, sleep_time, num, runs=33):
+        # returns response to each frequency and the average temperature during the measurement
+        runs = int(runs)
+
+        self.sig_gen.write("OUTPut ON")
+        data_list = np.ones([len(freqs), runs]) * np.nan
+
+        for i in range(runs + 1):
+            complete = False
+            while not complete:
+                # reset signal generator output to get to a known timing
+                self.sig_gen.write(f'APPLy:PULSe {10}, MAX')
+                self.sig_gen.write(f'APPLy:PULSe {1 / self.t}, MAX')
+                start = time.time()
+                if i > 0:  # do processing of previous signal
+                    response = signal
+                    # process and store
+                    data_list[:, i - 1] = np.abs(np.fft.fft(response - np.mean(response))[1:int(num / 2) + 1])
+                # todo look into the timings... I can surely speed this up?
+                if sleep_time - (time.time() - start) > 1e-3:
+                    time.sleep(sleep_time - (time.time() - start))  # wait for next cycle
+                else:
+                    # wait for the cycle after the next cycle
+                    self.sig_gen.write(f'APPLy:PULSe {10}, MAX')
+                    self.sig_gen.write(f'APPLy:PULSe {1 / self.t}, MAX')
+                    time.sleep(sleep_time)
+                # read the microphone signal
+                signal = self.task.read(num)
+                if np.argmax(np.abs(signal)) < len(signal) / 3:
+                    complete = True
+        self.sig_gen.write("OUTPut OFF")
+        return np.nanmean(data_list, 1)
+
+    def measure_sweep(self, freqs):  # returns response to each frequency and the average temperature during measurement
+        self.sig_gen.write("OUTPut ON")
+        data = np.ones([len(freqs)]) * np.nan
+        temps = np.ones([len(freqs)]) * np.nan
+
+        a = np.arange(len(freqs))
+        np.random.default_rng().shuffle(a)
+        for e in a:
+            self.sig_gen.write(f'APPLy:SINusoid {freqs[e]}, {self.vpp}')
+            time.sleep(0.05)
+            signal, temp = self.task.read(self.num)
+            data[e] = np.sqrt(np.mean(np.square(signal)))  # calculate RMS of signal
+            temps[e] = np.mean(temp)
+
+        self.sig_gen.write("OUTPut OFF")
+        return data, temp_get(np.nanmean(temps))
+
+
 class AutoTemp:
     """
     Automatically measures at given temperatures
 
     files will be saved for each temperature that is measured, and a final file that saves all the peaks and their temps
 
-    If I ever have the time I should split this into 2 classes: AutoTemp for managing and Measurer for measuring. The
-    DAQ card and signal generator should only be in Measurer, where a sweep/pulse method can be called. AutoTemp will
-    then manage when each measurement is called from Measurer. At the moment AutoTemp is just a big mess.
     """
 
-    def __init__(self, save_folder_path, dev_signal, dev_temp, vpp=5, sample_name=None, bounds=None, t=None):
+    def __init__(self, save_folder_path, dev_signal, dev_temp, vpp=10, sample_name=None, bounds=None, t=None):
         self.save_folder_path = save_folder_path
         if sample_name is None:
             self.sample_name = input("Sample name:")
@@ -92,7 +167,7 @@ class AutoTemp:
         if bounds is None:
             self.bounds = [float(input("lower freq:")), float(input("upper freq:"))]
         else:
-            self.bounds = bounds  # todo check this works well
+            self.bounds = bounds
         if t is None:
             t = 0.2
 
@@ -109,8 +184,9 @@ class AutoTemp:
 
         # setting up signal generator
         self.sig_gen = set_up_signal_generator_pulse()
-        self.vpp = vpp
         self.sig_gen.write("OUTPut OFF")
+
+        self.M = Measurer(self.out, self.task, self.num, self.sig_gen, vpp)
 
     def auto_pulse(self, bounds=None, time_between=30, repeats=300, runs=33, temp=None, **kwargs):
         if temp is None:
@@ -146,7 +222,7 @@ class AutoTemp:
         overall_start = time.time()
         for i in range(repeats):
             print(f"\r {i} of {repeats}", end='')
-            data = self.measure_pulse(freqs=freqs, sleep_time=sleep_time, num=num, runs=runs)
+            data = self.M.measure_pulse(freqs=freqs, sleep_time=sleep_time, num=num, runs=runs)
 
             # data/file management
             data_list[:, i] = data
@@ -199,7 +275,7 @@ class AutoTemp:
 
             self.task.close()
             self.task, num = set_up_daq(mode='single', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)
-            data = self.measure_pulse(freqs=freqs, sleep_time=sleep_time, num=num, runs=runs)
+            data = self.M.measure_pulse(freqs=freqs, sleep_time=sleep_time, num=num, runs=runs)
             self.task.close()
             self.task = set_up_daq(mode='dual', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)[0]
             temps[i] = (float(temp) + float(np.nanmean(temp_get(self.task.read(self.num)[1])))) / 2
@@ -218,45 +294,18 @@ class AutoTemp:
 
         finishstuff(overall_start, self.save_folder_path, self.sample_name, method="P")
 
-    def measure_pulse(self, freqs, sleep_time, num, runs=33):
-        # returns response to each frequency and the average temperature during the measurement
-        runs = int(runs)
-
-        self.sig_gen.write("OUTPut ON")
-        data_list = np.ones([len(freqs), runs]) * np.nan
-
-        for i in range(runs + 1):
-            complete = False
-            while not complete:
-                # reset signal generator output to get to a known timing
-                self.sig_gen.write(f'APPLy:PULSe {10}, MAX')
-                self.sig_gen.write(f'APPLy:PULSe {1 / self.t}, MAX')
-                start = time.time()
-                if i > 0:  # do processing of previous signal
-                    response = signal
-                    # process and store
-                    data_list[:, i - 1] = np.abs(np.fft.fft(response - np.mean(response))[1:int(num / 2) + 1])
-                # todo look into the timings... I can surely speed this up?
-                if sleep_time - (time.time() - start) > 1e-3:
-                    time.sleep(sleep_time - (time.time() - start))  # wait for next cycle
-                else:
-                    # wait for the cycle after the next cycle
-                    self.sig_gen.write(f'APPLy:PULSe {10}, MAX')
-                    self.sig_gen.write(f'APPLy:PULSe {1 / self.t}, MAX')
-                    time.sleep(sleep_time)
-                # read the microphone signal
-                signal = self.task.read(num)
-                if np.argmax(np.abs(signal)) < len(signal) / 3:
-                    complete = True
-        self.sig_gen.write("OUTPut OFF")
-        return np.nanmean(data_list, 1)
-
-    def auto_sweep(self, freqstep=5, repeats=None, GUI=None, **kwargs):
-        print("starting autotemp...")
-
+    def auto_sweep(self, freqstep=5, repeats=None, temp=None):
+        if temp is None:
+            temp = input("Do you want temperature recordings? 'Y' for yes:")
+        if temp == 'y' or temp == 'Y':
+            temp = True
+        else:
+            temp = 0
         repeats = int(repeats)
         if repeats < 2:
             repeats = int(2)
+
+        print("starting autotemp...")
 
         bounds = self.bounds
         freqs = np.sort(np.linspace(start=bounds[0], stop=bounds[-1],
@@ -269,7 +318,7 @@ class AutoTemp:
         for i, temp_should_be in enumerate(range(repeats)):
             print(f"\r {i} of {repeats}", end='')
 
-            data, temp = self.measure_sweep(freqs)
+            data, temp = self.M.measure_sweep(freqs)
             data_list[:, i] = data
             # temps[i] = float(temp)
 
@@ -282,7 +331,7 @@ class AutoTemp:
                           save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
                           sample=self.sample_name)
 
-            fitstuff(data, freqs, bounds, temp, overall_start, freqstep)
+            # fitstuff(data, freqs, bounds, temp, overall_start, freqstep)
 
         finishstuff(overall_start, self.save_folder_path, self.sample_name, method="S")
 
@@ -303,7 +352,7 @@ class AutoTemp:
             print(f"\r {i} of {len(required_temps)}", end='')
             temp = self.temp_move_on(temp_should_be, up, GUI)
 
-            data, temp = self.measure_sweep(freqs)
+            data, temp = self.M.measure_sweep(freqs)
             data_list[:, i] = data
             # temps[i] = float(temp)
 
@@ -319,23 +368,6 @@ class AutoTemp:
             fitstuff(data, freqs, bounds, temp, overall_start, freqstep)
 
         finishstuff(overall_start, self.save_folder_path, self.sample_name, method="S")
-
-    def measure_sweep(self, freqs):  # returns response to each frequency and the average temperature during measurement
-        self.sig_gen.write("OUTPut ON")
-        data = np.ones([len(freqs)]) * np.nan
-        temps = np.ones([len(freqs)]) * np.nan
-
-        a = np.arange(len(freqs))
-        np.random.default_rng().shuffle(a)
-        for e in a:
-            self.sig_gen.write(f'APPLy:SINusoid {freqs[e]}, {self.vpp}')
-            time.sleep(0.05)
-            signal, temp = self.task.read(self.num)
-            data[e] = np.sqrt(np.mean(np.square(signal)))  # calculate RMS of signal
-            temps[e] = np.mean(temp)
-
-        self.sig_gen.write("OUTPut OFF")
-        return data, temp_get(np.nanmean(temps))
 
     def auto_temp_adaptive(self, vpp=5, tolerance=5, start_guess=1e3, start_delta=1e3, **kwargs):
         bounds = self.bounds
@@ -357,7 +389,7 @@ class AutoTemp:
             while res is None:
                 try:
                     res = minimizeCompass(
-                        self.measure_adaptive, x0=[start_guess], bounds=[bounds], errorcontrol=True, disp=False,
+                        self.M.measure_adaptive, x0=[start_guess], bounds=[bounds], errorcontrol=True, disp=False,
                         paired=False, deltainit=start_delta, deltatol=tolerance, funcNinit=4, funcmultfactor=1.25)
                 except ExitException:
                     continue
@@ -373,36 +405,15 @@ class AutoTemp:
                           sample=self.sample_name)
 
             print(f"Temp {temp:.3g}, peak at {res.x[0]:.6g} pm {tolerance /2:.2g} Hz after"
-                  f"{self.measure_adaptive()} measurements")
+                  f"{self.M.measure_adaptive()} measurements")
 
             with open("outputs/autotemp.txt", "a") as autotemp:
                 autotemp.write(f"{time.time() - overall_start:.6g} {res.x[0]:.6g} {tolerance / 2:.6g} {temp:.6g}\n")
         finishstuff(overall_start, self.save_folder_path, self.sample_name, method="A")
 
-    def measure_adaptive(self, f=None, i=[0]):
-        if f is None:
-            a = i[0]
-            i[0] = 0  # reset counter
-            return a
-        self.sig_gen.write(f'APPLy:SINusoid {float(f)}, {self.vpp}')  # set the signal generator to the frequency f
-        time.sleep(0.05)
-        signal, temps = self.task.read(self.num)
-        rms = np.sqrt(np.mean(np.square(signal)))  # read signal from microphone then calculate RMS
-        self.out.write(f"{float(f):.6g} {rms:.6g} {temp_get(np.mean(temps)):.6g}\n")
-        if i[0] >= 2e2:
-            # credit for this neat mutable argument call counter trick goes to https://stackoverflow.com/a/23160861
-            print("minimizeCompass got stuck so is being restarted")
-            self.out.close()
-            self.out = open("outputs/output_a.txt", 'w')  # reopen (and empty) the output file
-            i[0] = 0
-            raise ExitException
-        i[0] += 1
-        return -rms
-
     def close(self):
         self.task.close()
         self.sig_gen.write("OUTPut OFF")
-        # self.sig_gen.close()  # todo why was this here!?
         if (isinstance(self.out, io.TextIOBase) or isinstance(self.out, io.BufferedIOBase) or
                 isinstance(self.out, io.RawIOBase) or isinstance(self.out, io.IOBase)):  # if self.out is an open file
             self.out.close()
