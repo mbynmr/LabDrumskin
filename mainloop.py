@@ -6,8 +6,8 @@ import sys
 from matplotlib.pyplot import close as matplotlibclose
 
 from measurement import measure_sweep, measure_pulse_decay, measure_adaptive
-from automation import AutoTemp, grab_temp
-from IO_setup import list_devices
+from automation import AutoTemp
+from IO_setup import list_devices, calibrate, grab_temp
 from my_tools import resave_output, round_sig_figs
 from aggregation import manual_peak_auto  # , aggregate, colourplot, manual_peak
 from fitting import fit  # , find_peaks
@@ -174,7 +174,7 @@ class Main:
                 case 'P':
                     # at.auto_temp_pulse(delay=10, temp_step=self.tempstep.get(),
                     #                    temp_repeats=self.repeats.get(), runs=self.runs.get())
-                    at.auto_pulse(time_between=15, repeats=self.repeats.get(), runs=self.runs.get(), temp='y')
+                    at.auto_pulse(time_between=1, repeats=self.repeats.get(), runs=self.runs.get(), temp='y')
                 case 'A':
                     at.auto_temp_adaptive(tolerance=5, start_guess=5e2, start_delta=1e2, temp_step=self.tempstep.get(),
                                           temp_repeats=self.repeats.get())
@@ -211,10 +211,8 @@ class Main:
 
     def calibrate(self):
         self.running = True
-        at = AutoTemp(save_folder_path="outputs", dev_signal=self.dev_signal.get() + '/' + self.chan_signal.get(),
-                      dev_temp=self.dev_temp.get() + '/' + self.chan_temp.get(), sample_name='no', bounds=[0, 1])
-        at.calibrate()
-        at.close()
+        calibrate(mode='dual', c1=self.dev_signal.get() + '/' + self.chan_signal.get(),
+                  c2=self.dev_temp.get() + '/' + self.chan_temp.get())
         self.running = False
 
     def resave_output(self):

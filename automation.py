@@ -9,33 +9,9 @@ from noisyopt import minimizeCompass
 
 from my_tools import resave_output, resave_auto, ax_lims, temp_get, convert_temp_to_tempstr
 from fitting import lorentzian
-from IO_setup import set_up_signal_generator_pulse  # , set_up_signal_generator_sine
+from IO_setup import set_up_signal_generator_pulse, set_up_daq  # , set_up_signal_generator_sine
 # from measurement import measure, measure_adaptive, measure_pulse_decay
 from aggregation import resave
-
-
-def grab_temp(dev, chan, num=1000):
-    with ni.Task() as task:
-        task.ai_channels.add_ai_voltage_chan(dev + '/' + chan, min_val=-10.0, max_val=10.0)
-        task.timing.cfg_samp_clk_timing(rate=10000, samps_per_chan=10000)
-        return np.mean(temp_get(task.read(num)))
-
-
-def set_up_daq(mode, c1, c2, rate=int(20e3), t=0.2):
-    task = ni.Task()
-    match mode:
-        case 'dual':
-            num = int(np.ceil(int(rate / 2) * t))  # number of samples to measure
-            task.ai_channels.add_ai_voltage_chan(c1, min_val=-10.0, max_val=10.0)
-            task.timing.cfg_samp_clk_timing(rate=int(rate / 2), samps_per_chan=num)
-            task.ai_channels.add_ai_voltage_chan(c2, min_val=-10.0, max_val=10.0)
-        case 'single':
-            num = int(np.ceil(rate * t))  # number of samples to measure
-            task.ai_channels.add_ai_voltage_chan(c1, min_val=-10.0, max_val=10.0)
-            task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
-        case _:
-            raise ValueError("'dual' or 'single' mode for set_up_daq_task")
-    return task, num
 
 
 def fitstuff(data, freqs, bounds, temp, overall_start, freqstep=5):
@@ -72,12 +48,32 @@ class Measurer:
     AutoTemp calls this to do measurements
     """
 
-    def __init__(self, out, task, num, sig_gen, vpp):
+    def __init__(self, out, vpp, c1, c2=None, mode='dual', rate=None, t=None):
         self.out = out
-        self.task = task
-        self.num = num
-        self.sig_gen = sig_gen
         self.vpp = vpp
+        self.c1 = c1
+        self.c2 = c2
+        self.rate = rate
+        self.t = t
+
+        # setting up signal generator
+        self.sig_gen = set_up_signal_generator_pulse()
+        self.sig_gen.write("OUTPut OFF")
+
+        # setting up daq
+        self.task = None  # in init first
+        self.num = self.task_create(mode, ret=True)
+
+    def task_create(self, mode, ret=False):
+        self.task, num = set_up_daq(mode, self.c1, self.c2, self.rate, self.t)
+        if ret:
+            return num
+
+    def task_read(self):
+        return self.task.read(self.num)
+
+    def task_close(self):
+        self.task.close()
 
     def measure_adaptive(self, f=None, i=[0]):
         if f is None:
@@ -149,6 +145,10 @@ class Measurer:
         self.sig_gen.write("OUTPut OFF")
         return data, temp_get(np.nanmean(temps))
 
+    def close(self):
+        self.sig_gen.write("OUTPut OFF")
+        self.task_close()
+
 
 class AutoTemp:
     """
@@ -170,24 +170,16 @@ class AutoTemp:
         if t is None:
             t = 0.2
 
-        self.dev_signal = dev_signal
-        self.dev_temp = dev_temp
-
         # setting up data collection
         self.rate = 20000  # max samples per second of the DAQ card
         self.t = t
-        self.task, self.num = set_up_daq(mode='dual', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)
 
         # storage for adaptive
         self.out = open("outputs/output_a.txt", 'w')
 
-        # setting up signal generator
-        self.sig_gen = set_up_signal_generator_pulse()
-        self.sig_gen.write("OUTPut OFF")
+        self.M = Measurer(self.out, vpp, c1=dev_signal, c2=dev_temp, mode='dual', rate=self.rate, t=self.t)
 
-        self.M = Measurer(self.out, self.task, self.num, self.sig_gen, vpp)
-
-    def auto_pulse(self, bounds=None, time_between=30, repeats=300, runs=33, temp=None, **kwargs):
+    def auto_pulse(self, bounds=None, time_between=30, repeats=300, runs=33, temp=None):
         if temp is None:
             temp = input("Do you want temperature recordings? 'Y' for yes:")
         if temp == 'y' or temp == 'Y':
@@ -213,8 +205,8 @@ class AutoTemp:
         data_list = np.ones([len(freqs), repeats]) * np.nan
 
         print("starting autotemp...")
-        self.task.close()
-        self.task, num = set_up_daq(mode='single', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)
+        self.M.task_close()
+        num = self.M.task_create(mode='single', ret=True)
         with open("outputs/autotemp.txt", "w") as autotemp:  # reset the file
             pass
 
@@ -259,8 +251,8 @@ class AutoTemp:
 
         print("starting autotemp...")
 
-        self.task.close()
-        self.task = set_up_daq(mode='dual', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)[0]
+        self.M.task_close()
+        self.M.task_create(mode='dual')
         required_temps, up = self.required_temps_get(**kwargs)
         data_list = np.ones([len(freqs), len(required_temps)]) * np.nan
         temps = np.ones([len(required_temps)]) * np.nan
@@ -272,12 +264,12 @@ class AutoTemp:
             print(f"\r {i} of {len(required_temps)}", end='')
             temp = self.temp_move_on(temp_should_be, up)
 
-            self.task.close()
-            self.task, num = set_up_daq(mode='single', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)
+            self.M.task_close()
+            num = self.M.task_create(mode='single', ret=True)
             data = self.M.measure_pulse(freqs=freqs, sleep_time=sleep_time, num=num, runs=runs)
-            self.task.close()
-            self.task = set_up_daq(mode='dual', c1=self.dev_signal, c2=self.dev_temp, rate=self.rate, t=self.t)[0]
-            temps[i] = (float(temp) + float(np.nanmean(temp_get(self.task.read(self.num)[1])))) / 2
+            self.M.task_close()
+            self.M.task_create(mode='dual')
+            temps[i] = (float(temp) + float(np.nanmean(temp_get(self.M.task_read()[1])))) / 2
 
             # data/file management
             data_list[:, i] = data
@@ -411,47 +403,14 @@ class AutoTemp:
         finishstuff(overall_start, self.save_folder_path, self.sample_name, method="A")
 
     def close(self):
-        self.task.close()
-        self.sig_gen.write("OUTPut OFF")
+        self.M.close()
         if (isinstance(self.out, io.TextIOBase) or isinstance(self.out, io.BufferedIOBase) or
                 isinstance(self.out, io.RawIOBase) or isinstance(self.out, io.IOBase)):  # if self.out is an open file
             self.out.close()
 
-    def calibrate(self):
-        plt.ion()
-        fig, ax = plt.subplots()
-        line, = ax.plot([0, 0], [0, 0], 'k')
-        axt = ax.twinx()
-        linet, = axt.plot([0, 0], [0, 0], 'r')
-        # plt.xlabel("elapsed time / s")
-        temps = []
-        realts = []
-        starttime = time.time()
-        while plt.fignum_exists(fig.number):
-            _, t = self.task.read(self.num)
-            temps.append(np.mean(t))
-            realt = np.mean(temp_get(t))
-            realts.append(realt)
-            plt.title(f"reading is {np.mean(t):.6g}V, meaning temp is {realt:.6g}C")
-            # print(np.mean(t))
-
-            elapsed = time.time() - starttime
-            line.set_xdata(np.linspace(start=0, stop=elapsed, endpoint=True, num=len(temps)))
-            line.set_ydata(temps)
-            ax.set_xlim([0, elapsed])
-            ax.set_ylim(ax_lims(temps))
-
-            linet.set_xdata(np.linspace(start=0, stop=elapsed, endpoint=True, num=len(temps)))
-            linet.set_ydata(realts)
-            axt.set_xlim([0, elapsed])
-            axt.set_ylim(ax_lims(realts))
-
-            fig.canvas.draw()
-            fig.canvas.flush_events()
-
     def required_temps_get(self, temp_start=None, temp_stop=None, temp_step=2.5, temp_repeats=1):
         if temp_start is None:
-            temp_start = temp_get(np.nanmean(self.task.read(self.num)[1]))
+            temp_start = temp_get(np.nanmean(self.M.task_read()[1]))
         temp_start = float(temp_start)
         print(f"Current temp is {temp_start:.4g}")
         if temp_stop is None:
@@ -478,7 +437,7 @@ class AutoTemp:
 
     def temp_move_on(self, temp_should_be, up, GUI=None):
         # only move on to the next measurements after the temperature has been reached
-        temp = np.nanmean(temp_get(self.task.read(self.num)[1]))
+        temp = np.nanmean(temp_get(self.M.task_read()[1]))
         while (up and temp < temp_should_be - 0.25) or (not up and temp > temp_should_be + 0.25):
             # repeatedly check if the temp is high/low enough to move on (if it is not enough it will stay here)
             if GUI is None:
@@ -495,7 +454,7 @@ class AutoTemp:
                 temp_str = f'{temp:.4g}'
             print(f"\rMoving on at {temp_should_be + (-0.25 if up else 0.25):.4g}, current temp is {temp_str}", end='')
 
-            temp = np.nanmean(temp_get(self.task.read(self.num)[1]))
+            temp = np.nanmean(temp_get(self.M.task_read()[1]))
         return temp
 
 

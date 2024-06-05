@@ -130,7 +130,7 @@ def manual_peak(save_path, cutoff, file_name=None):
     data[:, 2] = abs(x[0] - x[1])
     np.savetxt("outputs/manual.txt", data, fmt='%.6g')
     print("\ndone!")
-    resave_auto(save_path=save_path, manual=True)
+    resave_auto(save_path=save_path)
 
 
 def manual_peak_auto(save_path, cutoff=None, sample=None, printer=None):
@@ -212,7 +212,7 @@ def manual_peak_auto(save_path, cutoff=None, sample=None, printer=None):
     data[:, 0] = data[:, 0] - data[0, 0]
     np.savetxt("outputs/manual.txt", data, fmt='%.6g')
     print("\ndone!")
-    resave_auto(save_path=save_path, manual=True, sample_name=sample, method=method)
+    resave_auto(save_path=save_path, sample_name=sample, method=method)
 
 
 def on_pick(event):
