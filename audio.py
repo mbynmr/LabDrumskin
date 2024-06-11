@@ -2,8 +2,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sounddevice as sd
 import soundfile as sf
-import time
 import datetime
+
+
+def normalise(v):
+    # put v in the range -1 to 1. Not very robust, can be broken by 0s or a len of <2
+    v = np.array(v)
+    v = (v + np.amin(v) if np.amin(v) >= 0 else v - np.amin(v))
+    return (2 * v / np.amax(v)) - 1
 
 
 def play_mic_signal(array=None, t=0.2):
@@ -14,8 +20,8 @@ def play_mic_signal(array=None, t=0.2):
     v = array[:, 1]
 
     samplerate = t.shape[0] / (t.max() - t.min())
-    v = (v + v.min() if v.min() >= 0 else v - v.min())
-    v = (2 * v / v.max()) - 1
+
+    v = normalise(v)
     sd.play(v, samplerate=samplerate, blocking=False, loop=True)
     print("audio playing... raw mic signal")
     '''
@@ -94,9 +100,8 @@ def play_spectra(file, t=0.2):
     ax.plot(v)
     plt.ioff()
 
-    samplerate = 20000.0
-    v = (v + v.min() if v.min() >= 0 else v - v.min())
-    v = (2 * v / v.max()) - 1
+    samplerate = 20000.0  # Hz
+    v = normalise(v)
     sd.play(v, samplerate=samplerate, blocking=False, loop=True)
     print("audio playing... spectra")
 

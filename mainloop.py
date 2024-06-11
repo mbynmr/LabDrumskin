@@ -22,7 +22,6 @@ class Main:
     """
 
     def __init__(self):
-        # mainwindowobject is self.w
         self.w = tk.Tk(className='Piezo actuation and microphone detection')
         self.w.geometry("600x400")  # this is the worst. i hate it.
         self.w.resizable(False, False)
@@ -163,51 +162,55 @@ class Main:
     def run(self):
         # get inputs as they are needed and run measurements
         self.running = True
-
         if self.run_type.get() == "autotemp":
-            at = AutoTemp(save_folder_path=self.save_path.get() + "/AutoTemp",
-                          dev_signal=self.dev_signal.get() + '/' + self.chan_signal.get(), vpp=self.vpp.get(),
-                          dev_temp=self.dev_temp.get() + '/' + self.chan_temp.get(),
-                          sample_name=self.sample_name.get(), bounds=[self.boundL.get(), self.boundU.get()],
-                          t=self.t.get())
-            match self.method.get():
-                case 'P':
-                    # at.auto_temp_pulse(delay=10, temp_step=self.tempstep.get(),
-                    #                    temp_repeats=self.repeats.get(), runs=self.runs.get())
-                    at.auto_pulse(time_between=1, repeats=self.repeats.get(), runs=self.runs.get(), temp='y')
-                case 'A':
-                    at.auto_temp_adaptive(tolerance=5, start_guess=5e2, start_delta=1e2, temp_step=self.tempstep.get(),
-                                          temp_repeats=self.repeats.get())
-                case 'S':
-                    # at.auto_temp_sweep(freqstep=self.freqstep.get(), temp_step=self.tempstep.get(),
-                    #                    temp_repeats=self.repeats.get(), temp_start=self.tempL.get(),
-                    #                    temp_stop=self.tempU.get(), GUI=self)
-                    at.auto_sweep(freqstep=self.freqstep.get(), repeats=self.repeats.get(), temp='y')
-            self.w.after(600, notify_finish)  # extra notify for autotemp as I may b distracted!
-            at.close()
+            self.run_autotemp()  # todo parallelise with self.w.after(1, self.run_autotemp()) but care for self.running!
         elif self.run_type.get() == "single":
-            match self.method.get():
-                case 'P':
-                    measure_pulse_decay(self.dev_signal.get() + '/' + self.chan_signal.get(), runs=self.runs.get(),
-                                        delay=10, t=self.t.get(), GUI=self)
-                case 'A':
-                    measure_adaptive(self.dev_signal.get() + '/' + self.chan_signal.get(), vpp=self.vpp.get(),
-                                     tolerance=self.freqstep.get(), start_guess=600, deltainit=1e2,
-                                     bounds=[self.boundL.get(), self.boundU.get()])
-                case 'S':
-                    measure_sweep(freq=[self.boundL.get(), self.boundU.get()], freqstep=self.freqstep.get(),
-                                  t=self.t.get(), vpp=self.vpp.get(),
-                                  devchan=self.dev_signal.get() + '/' + self.chan_signal.get(), GUI=self)
-            # save output and fit after finishing single run
-            if self.temptrack.get():
-                self.temp.set(
-                    round_sig_figs(grab_temp(self.dev_temp.get(), self.chan_temp.get(), num=10000), sig_fig=4))
-            self.resave_output()
-            if self.fit.get():
-                self.w.after(1, fit, "outputs/output.txt", True)  # todo cutoff
-
+            self.run_single()
         self.running = False
         notify_finish()
+
+    def run_autotemp(self):
+        at = AutoTemp(save_folder_path=self.save_path.get() + "/AutoTemp",
+                      dev_signal=self.dev_signal.get() + '/' + self.chan_signal.get(), vpp=self.vpp.get(),
+                      dev_temp=self.dev_temp.get() + '/' + self.chan_temp.get(),
+                      sample_name=self.sample_name.get(), bounds=[self.boundL.get(), self.boundU.get()],
+                      t=self.t.get())
+        match self.method.get():
+            case 'P':
+                # at.auto_temp_pulse(delay=10, temp_step=self.tempstep.get(),
+                #                    temp_repeats=self.repeats.get(), runs=self.runs.get())
+                at.auto_pulse(time_between=1, repeats=self.repeats.get(), runs=self.runs.get())
+            case 'A':
+                at.auto_temp_adaptive(tolerance=5, start_guess=5e2, start_delta=1e2, temp_step=self.tempstep.get(),
+                                      temp_repeats=self.repeats.get())
+            case 'S':
+                # at.auto_temp_sweep(freqstep=self.freqstep.get(), temp_step=self.tempstep.get(),
+                #                    temp_repeats=self.repeats.get(), temp_start=self.tempL.get(),
+                #                    temp_stop=self.tempU.get(), GUI=self)
+                at.auto_sweep(freqstep=self.freqstep.get(), repeats=self.repeats.get())
+        self.w.after(600, notify_finish)  # extra notify for autotemp as I may b distracted!
+        at.close()
+
+    def run_single(self):
+        match self.method.get():
+            case 'P':
+                measure_pulse_decay(self.dev_signal.get() + '/' + self.chan_signal.get(), runs=self.runs.get(),
+                                    delay=10, t=self.t.get(), GUI=self)
+            case 'A':
+                measure_adaptive(self.dev_signal.get() + '/' + self.chan_signal.get(), vpp=self.vpp.get(),
+                                 tolerance=self.freqstep.get(), start_guess=600, deltainit=1e2,
+                                 bounds=[self.boundL.get(), self.boundU.get()])
+            case 'S':
+                measure_sweep(freq=[self.boundL.get(), self.boundU.get()], freqstep=self.freqstep.get(),
+                              t=self.t.get(), vpp=self.vpp.get(),
+                              devchan=self.dev_signal.get() + '/' + self.chan_signal.get(), GUI=self)
+        # save output and fit after finishing single run
+        if self.temptrack.get():
+            self.temp.set(
+                round_sig_figs(grab_temp(self.dev_temp.get(), self.chan_temp.get(), num=10000), sig_fig=4))
+        self.resave_output()
+        if self.fit.get():
+            self.w.after(1, fit, "outputs/output.txt", True)  # todo cutoff
 
     def calibrate(self):
         self.running = True
@@ -226,7 +229,8 @@ class Main:
                       sample=self.sample_name.get(), copy=False)
 
     def manual_peak(self):
-        manual_peak_auto(save_path=self.save_path.get(), cutoff=[0, 1], sample=self.sample_name.get())
+        manual_peak_auto(save_path=self.save_path.get(), cutoff=[0, 1], sample=self.sample_name.get(),
+                         printer=self.Writer)
         # # manual_peak(save_path=save_path + r"\AutoTemp", cutoff=[0.05, 0.6])
         # resave(save_path + r"\AutoTemp")
 

@@ -58,28 +58,26 @@ def ax_lims(data):
 def resave_output(method=None, save_path=None, temperature=None, sample=None, copy=False):
     # saves output.txt under another name
 
+    # note the time
     end_time = time.localtime()[0:6]
-
     # load (copy) straight away to avoid conflicts and things
     a = np.loadtxt(f"outputs/output.txt")
 
+    # test details
     if temperature is None:
         temperature = input("Temperature ('rt', '40', etc.):")
-        # temperature = 20
     if sample is None:
         sample = input("Sample name ('C0', 'CF4', etc.):")
-        # sample_name = "PSY2_J_" + f"{np.random.random():.6g}".split(".")[1]
-    elif "\n" in sample or "\r" in sample or "\t" in sample or "\b" in sample or "\\" in sample:
+    if "\n" in sample or "\r" in sample or "\t" in sample or "\b" in sample or "\\" in sample:
         sample = "placeholder_name"
         print("bad sample name, replacing with 'placeholder_name'")
     if save_path is None:
         save_path = input("Write the path to the folder you want to save in (can be 'outputs')")
 
-    # add some test details to the file name
+    # add the test details to the file name
     fname = '_'.join([str(e).zfill(2) for e in end_time]) + f"_{method}_{sample}_{temperature}"
 
-    # a[np.argsort(a, axis=0)[:, 0]] sorts by frequency (or whatever is in column 0)!
-
+    # save it
     print(f"Copying to file name '{fname}.txt' and sorting by frequency", end='')
     # np.savetxt(f"{save_path}/{fname}.txt", a[np.argsort(a, axis=0)[:, 0]], fmt='%.4g')
     np.savetxt(f"{save_path}/{fname}.txt", a[np.argsort(a, axis=0)[:, 0]], fmt='%.4g')
@@ -151,11 +149,15 @@ def temp_get_oldest(voltage):
     return (100 / (hundred - zero)) * (np.asarray(voltage) - zero)
 
 
-def convert_temp_to_tempstr(temp):
+def temp_to_str(temp):
     # works for any temp from 10.00 to 99.99, not sure about any others though!
+    # todo I might even just want 2dp all the time.
     tempstr = f"{temp:.4g}"
     if len(tempstr.split(".")) == 1:
-        return tempstr + ".00"
+        if len(tempstr) < 4:
+            return tempstr + ".00"
+        else:
+            return tempstr + ".0"
     elif len(tempstr) < 5:
         return tempstr + "0"
     return tempstr

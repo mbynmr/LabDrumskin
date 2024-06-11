@@ -105,3 +105,4 @@ def calibrate(**kwargs):
 
         fig.canvas.draw()
         fig.canvas.flush_events()
+    task.close()

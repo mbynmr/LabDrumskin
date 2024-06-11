@@ -7,7 +7,7 @@ import time
 from scipy.optimize import curve_fit
 from noisyopt import minimizeCompass
 
-from my_tools import resave_output, resave_auto, ax_lims, temp_get, convert_temp_to_tempstr
+from my_tools import resave_output, resave_auto, ax_lims, temp_get, temp_to_str
 from fitting import lorentzian
 from IO_setup import set_up_signal_generator_pulse, set_up_daq  # , set_up_signal_generator_sine
 # from measurement import measure, measure_adaptive, measure_pulse_decay
@@ -48,19 +48,22 @@ class Measurer:
     AutoTemp calls this to do measurements
     """
 
-    def __init__(self, out, vpp, c1, c2=None, mode='dual', rate=None, t=None):
+    def __init__(self, out, vpp, c1, c2=None, mode='dual', t=None):
         self.out = out
-        self.vpp = vpp
-        self.c1 = c1
-        self.c2 = c2
-        self.rate = rate
-        self.t = t
 
         # setting up signal generator
+        self.vpp = vpp
         self.sig_gen = set_up_signal_generator_pulse()
         self.sig_gen.write("OUTPut OFF")
 
         # setting up daq
+        self.c1 = c1
+        self.c2 = c2
+        if t is None:
+            self.t = 0.2
+        else:
+            self.t = t
+        self.rate = 20000  # max samples per second of the DAQ card
         self.task = None  # in init first
         self.num = self.task_create(mode, ret=True)
 
@@ -69,8 +72,10 @@ class Measurer:
         if ret:
             return num
 
-    def task_read(self):
-        return self.task.read(self.num)
+    def task_read(self, num=None):
+        if num is None:
+            return self.task.read(self.num)
+        return self.task.read(num)
 
     def task_close(self):
         self.task.close()
@@ -79,14 +84,14 @@ class Measurer:
         if f is None:
             a = i[0]
             i[0] = 0  # reset counter
+            # credit for this neat mutable argument call counter trick goes to https://stackoverflow.com/a/23160861
             return a
         self.sig_gen.write(f'APPLy:SINusoid {float(f)}, {self.vpp}')  # set the signal generator to the frequency f
         time.sleep(0.05)
-        signal, temps = self.task.read(self.num)
+        signal, temps = self.task_read()
         rms = np.sqrt(np.mean(np.square(signal)))  # read signal from microphone then calculate RMS
         self.out.write(f"{float(f):.6g} {rms:.6g} {temp_get(np.mean(temps)):.6g}\n")
         if i[0] >= 2e2:
-            # credit for this neat mutable argument call counter trick goes to https://stackoverflow.com/a/23160861
             print("minimizeCompass got stuck so is being restarted")
             self.out.close()
             self.out = open("outputs/output_a.txt", 'w')  # reopen (and empty) the output file
@@ -95,7 +100,7 @@ class Measurer:
         i[0] += 1
         return -rms
 
-    def measure_pulse(self, freqs, sleep_time, num, runs=33):
+    def measure_pulse(self, freqs, sleep_time, runs=33):
         # returns response to each frequency and the average temperature during the measurement
         runs = int(runs)
 
@@ -112,7 +117,7 @@ class Measurer:
                 if i > 0:  # do processing of previous signal
                     response = signal
                     # process and store
-                    data_list[:, i - 1] = np.abs(np.fft.fft(response - np.mean(response))[1:int(num / 2) + 1])
+                    data_list[:, i - 1] = np.abs(np.fft.fft(response - np.mean(response))[1:int(self.num / 2) + 1])
                 # todo look into the timings... I can surely speed this up?
                 if sleep_time - (time.time() - start) > 1e-3:
                     time.sleep(sleep_time - (time.time() - start))  # wait for next cycle
@@ -122,7 +127,7 @@ class Measurer:
                     self.sig_gen.write(f'APPLy:PULSe {1 / self.t}, MAX')
                     time.sleep(sleep_time)
                 # read the microphone signal
-                signal = self.task.read(num)
+                signal = self.task_read()
                 if np.argmax(np.abs(signal)) < len(signal) / 3:
                     complete = True
         self.sig_gen.write("OUTPut OFF")
@@ -138,12 +143,12 @@ class Measurer:
         for e in a:
             self.sig_gen.write(f'APPLy:SINusoid {freqs[e]}, {self.vpp}')
             time.sleep(0.05)
-            signal, temp = self.task.read(self.num)
+            signal, temp = self.task_read()
             data[e] = np.sqrt(np.mean(np.square(signal)))  # calculate RMS of signal
             temps[e] = np.mean(temp)
 
         self.sig_gen.write("OUTPut OFF")
-        return data, temp_get(np.nanmean(temps))
+        return data, temp_get(temps)
 
     def close(self):
         self.sig_gen.write("OUTPut OFF")
@@ -167,25 +172,14 @@ class AutoTemp:
             self.bounds = [float(input("lower freq:")), float(input("upper freq:"))]
         else:
             self.bounds = bounds
-        if t is None:
-            t = 0.2
-
-        # setting up data collection
-        self.rate = 20000  # max samples per second of the DAQ card
-        self.t = t
 
         # storage for adaptive
         self.out = open("outputs/output_a.txt", 'w')
 
-        self.M = Measurer(self.out, vpp, c1=dev_signal, c2=dev_temp, mode='dual', rate=self.rate, t=self.t)
+        # setting up data collection
+        self.M = Measurer(out=self.out, vpp=vpp, c1=dev_signal, c2=dev_temp, mode='dual', t=t)
 
-    def auto_pulse(self, bounds=None, time_between=30, repeats=300, runs=33, temp=None):
-        if temp is None:
-            temp = input("Do you want temperature recordings? 'Y' for yes:")
-        if temp == 'y' or temp == 'Y':
-            temp = True
-        else:
-            temp = 0
+    def auto_pulse(self, bounds=None, time_between=30, repeats=300, runs=33):
         if bounds is None:
             bounds = [1e3, 4e3]
         cutoff = np.divide(bounds, 10e3)
@@ -197,23 +191,29 @@ class AutoTemp:
         # times = np.arange(start=0, stop=self.t, step=(1 / rate))
 
         # setting up frequency variables
-        num = int(np.ceil(self.rate * self.t))  # number of samples to measure
-        min_freq = 1 / self.t
-        max_freq = self.rate / 2  # = (num / 2) / t  # aka Nyquist frequency
+        num = int(np.ceil(self.M.rate * self.M.t))  # number of samples to measure
+        min_freq = 1 / self.M.t
+        max_freq = self.M.rate / 2  # = (num / 2) / t  # aka Nyquist frequency
         # self.num_freqs = (self.max_freq - 0) / self.min_freq
         freqs = np.linspace(start=min_freq, stop=max_freq, num=int(num / 2), endpoint=True)
         data_list = np.ones([len(freqs), repeats]) * np.nan
 
         print("starting autotemp...")
         self.M.task_close()
-        num = self.M.task_create(mode='single', ret=True)
+        self.M.task_create(mode='dual')
         with open("outputs/autotemp.txt", "w") as autotemp:  # reset the file
             pass
 
         overall_start = time.time()
         for i in range(repeats):
             print(f"\r {i} of {repeats}", end='')
-            data = self.M.measure_pulse(freqs=freqs, sleep_time=sleep_time, num=num, runs=runs)
+            temp = np.nanmean(temp_get(self.M.task_read()[1]))
+            self.M.task_close()
+            self.M.task_create(mode='single')
+            data = self.M.measure_pulse(freqs=freqs, sleep_time=sleep_time, runs=runs)
+            self.M.task_close()
+            self.M.task_create(mode='dual')
+            temp = (float(temp) + float(np.nanmean(temp_get(self.M.task_read()[1])))) / 2  # temp before + after / 2
 
             # data/file management
             data_list[:, i] = data
@@ -222,7 +222,8 @@ class AutoTemp:
             arr[:, 1] = data
             np.savetxt("outputs/output.txt", arr)
             resave_output(method=f"TP{str(i).zfill(len(str(repeats - 1)))}",
-                          save_path=self.save_folder_path + r"\Spectra", temperature="T", sample=self.sample_name)
+                          save_path=self.save_folder_path + r"\Spectra", temperature=temp_to_str(temp),
+                          sample=self.sample_name)
 
             # fitstuff(data, freqs, bounds, temp, overall_start)
 
@@ -243,16 +244,14 @@ class AutoTemp:
         # times = np.arange(start=0, stop=self.t, step=(1 / rate))
 
         # setting up frequency variables
-        num = int(np.ceil(self.rate * self.t))  # number of samples to measure
-        min_freq = 1 / self.t
-        max_freq = self.rate / 2  # = (num / 2) / t  # aka Nyquist frequency
+        num = int(np.ceil(self.M.rate * self.M.t))  # number of samples to measure
+        min_freq = 1 / self.M.t
+        max_freq = self.M.rate / 2  # = (num / 2) / t  # aka Nyquist frequency
         # self.num_freqs = (self.max_freq - 0) / self.min_freq
         freqs = np.linspace(start=min_freq, stop=max_freq, num=int((num / 2) - 1), endpoint=True)
 
         print("starting autotemp...")
 
-        self.M.task_close()
-        self.M.task_create(mode='dual')
         required_temps, up = self.required_temps_get(**kwargs)
         data_list = np.ones([len(freqs), len(required_temps)]) * np.nan
         temps = np.ones([len(required_temps)]) * np.nan
@@ -265,11 +264,11 @@ class AutoTemp:
             temp = self.temp_move_on(temp_should_be, up)
 
             self.M.task_close()
-            num = self.M.task_create(mode='single', ret=True)
-            data = self.M.measure_pulse(freqs=freqs, sleep_time=sleep_time, num=num, runs=runs)
+            self.M.task_create(mode='single')
+            data = self.M.measure_pulse(freqs=freqs, sleep_time=sleep_time, runs=runs)
             self.M.task_close()
             self.M.task_create(mode='dual')
-            temps[i] = (float(temp) + float(np.nanmean(temp_get(self.M.task_read()[1])))) / 2
+            temps[i] = (float(temp) + float(np.nanmean(temp_get(self.M.task_read()[1])))) / 2  # temp before + after / 2
 
             # data/file management
             data_list[:, i] = data
@@ -278,20 +277,14 @@ class AutoTemp:
             arr[:, 1] = data
             np.savetxt("outputs/output.txt", arr)
             resave_output(method=f"TP{str(i).zfill(len(str(len(required_temps))))}",
-                          save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
+                          save_path=self.save_folder_path + r"\Spectra", temperature=temp_to_str(temps[i]),
                           sample=self.sample_name)
 
             # fitstuff(data, freqs, bounds, temp, overall_start)
 
         finishstuff(overall_start, self.save_folder_path, self.sample_name, method="P")
 
-    def auto_sweep(self, freqstep=5, repeats=None, temp=None):
-        if temp is None:
-            temp = input("Do you want temperature recordings? 'Y' for yes:")
-        if temp == 'y' or temp == 'Y':
-            temp = True
-        else:
-            temp = 0
+    def auto_sweep(self, freqstep=5, repeats=None):
         repeats = int(repeats)
         if repeats < 2:
             repeats = int(2)
@@ -306,20 +299,20 @@ class AutoTemp:
         overall_start = time.time()
         with open("outputs/autotemp.txt", "w") as autotemp:  # reset the file
             pass
-        for i, temp_should_be in enumerate(range(repeats)):
+        for i in range(repeats):
             print(f"\r {i} of {repeats}", end='')
 
             data, temp = self.M.measure_sweep(freqs)
             data_list[:, i] = data
-            # temps[i] = float(temp)
 
             # file management
-            arr = np.zeros([len(data), 2])
+            arr = np.zeros([len(data), 3])
             arr[:, 0] = freqs
             arr[:, 1] = data
+            arr[:, 2] = temp  # 2024/06/11 13:00 added temperature to saved files
             np.savetxt("outputs/output.txt", arr)
             resave_output(method=f"TS{str(i).zfill(len(str(repeats - 1)))}",
-                          save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
+                          save_path=self.save_folder_path + r"\Spectra", temperature=temp_to_str(np.nanmean(temp)),
                           sample=self.sample_name)
 
             # fitstuff(data, freqs, bounds, temp, overall_start, freqstep)
@@ -341,19 +334,19 @@ class AutoTemp:
             pass
         for i, temp_should_be in enumerate(required_temps):
             print(f"\r {i} of {len(required_temps)}", end='')
-            temp = self.temp_move_on(temp_should_be, up, GUI)
+            _ = self.temp_move_on(temp_should_be, up, GUI)
 
             data, temp = self.M.measure_sweep(freqs)
             data_list[:, i] = data
-            # temps[i] = float(temp)
 
             # file management
-            arr = np.zeros([len(data), 2])
+            arr = np.zeros([len(data), 3])
             arr[:, 0] = freqs
             arr[:, 1] = data
+            arr[:, 2] = temp  # 2024/06/11 13:00 added temperature to saved files
             np.savetxt("outputs/output.txt", arr)
             resave_output(method=f"TS{str(i).zfill(len(str(len(required_temps) - 1)))}",
-                          save_path=self.save_folder_path + r"\Spectra", temperature=convert_temp_to_tempstr(temp),
+                          save_path=self.save_folder_path + r"\Spectra", temperature=temp_to_str(np.nanmean(temp)),
                           sample=self.sample_name)
 
             # fitstuff(data, freqs, bounds, temp, overall_start, freqstep)
@@ -392,7 +385,7 @@ class AutoTemp:
             np.savetxt("outputs/output.txt", np.loadtxt("outputs/output_a.txt"), fmt='%.6g')
             self.out = open("outputs/output_a.txt", "w")
             resave_output(method=f"TA{str(i).zfill(len(str(len(required_temps))))}",
-                          save_path=self.save_folder_path + r"/Spectra", temperature=convert_temp_to_tempstr(temp),
+                          save_path=self.save_folder_path + r"/Spectra", temperature=temp_to_str(temp),
                           sample=self.sample_name)
 
             print(f"Temp {temp:.3g}, peak at {res.x[0]:.6g} pm {tolerance /2:.2g} Hz after"
