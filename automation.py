@@ -7,7 +7,7 @@ import time
 from scipy.optimize import curve_fit
 from noisyopt import minimizeCompass
 
-from my_tools import resave_output, resave_auto, ax_lims, temp_get, temp_to_str
+from my_tools import resave_output, temp_get, temp_to_str, round_sig_figs
 from fitting import lorentzian
 from IO_setup import set_up_signal_generator_pulse, set_up_daq  # , set_up_signal_generator_sine
 # from measurement import measure, measure_adaptive, measure_pulse_decay
@@ -36,10 +36,11 @@ def fitstuff(data, freqs, bounds, temp, overall_start, freqstep=5):
         autotemp.write(f"{time.time() - overall_start:.6g}  {value[1]:.6g} {error[1]:.6g} {temp:.6g}\n")
 
 
-def finishstuff(overall_start, save_folder_path, sample_name, method):
+def finishstuff(overall_start, freqstep, save_folder_path, sample_name, method):
     total_t = time.time() - overall_start
     print(f"\rThat took {total_t:.6g} seconds")
     print(f"Or {total_t // (60 * 60)}h {(total_t % (60 * 60)) // 60}m {total_t % 60:.4g}s")
+    print(f"Frequency step was {freqstep}")
     # resave_auto(save_path=save_folder_path, sample_name=sample_name, method=method)  # removed 31/05/2024: fit reliant
 
 
@@ -284,14 +285,17 @@ class AutoTemp:
 
         finishstuff(overall_start, self.save_folder_path, self.sample_name, method="P")
 
-    def auto_sweep(self, freqstep=5, repeats=None):
+    def auto_sweep(self, freqstep=0, repeats=None):
+        bounds = self.bounds
         repeats = int(repeats)
         if repeats < 2:
             repeats = int(2)
+        if freqstep == 0:
+            freqstep = (max(bounds) - min(bounds)) / 300
+            freqstep = round_sig_figs(freqstep, 2, method='d')
 
         print("starting autotemp...")
 
-        bounds = self.bounds
         freqs = np.sort(np.linspace(start=bounds[0], stop=bounds[-1],
                                     num=int(1 + abs(bounds[-1] - bounds[0]) / freqstep)))
         data_list = np.ones([len(freqs), repeats]) * np.nan
@@ -317,7 +321,7 @@ class AutoTemp:
 
             # fitstuff(data, freqs, bounds, temp, overall_start, freqstep)
 
-        finishstuff(overall_start, self.save_folder_path, self.sample_name, method="S")
+        finishstuff(overall_start, freqstep, self.save_folder_path, self.sample_name, method="S")
 
     def auto_temp_sweep(self, freqstep=5, GUI=None, **kwargs):
         print("starting autotemp...")
@@ -439,13 +443,8 @@ class AutoTemp:
                 GUI.w.after(5000)  # todo does this work? yes, but it is no better than sleep.
 
             # printing current temp (trying to avoid annoying formatting)
-            if len(f'{temp:.4g}'.split('.')[-1]) == 2 and len(f'{temp:.4g}') == 5:
-                temp_str = f'{temp:.4g}'
-            elif len(f'{temp:.4g}'.split('.')[-1]) == 1 and len(f'{temp:.4g}') == 4:
-                temp_str = f'{temp:.4g}0'
-            else:
-                temp_str = f'{temp:.4g}'
-            print(f"\rMoving on at {temp_should_be + (-0.25 if up else 0.25):.4g}, current temp is {temp_str}", end='')
+            print(f"\rMoving on at {temp_should_be + (-0.25 if up else 0.25):.4g}, current temp is {temp_to_str(temp)}",
+                  end='')
 
             temp = np.nanmean(temp_get(self.M.task_read()[1]))
         return temp

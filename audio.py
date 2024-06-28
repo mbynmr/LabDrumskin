@@ -8,21 +8,34 @@ import datetime
 def normalise(v):
     # put v in the range -1 to 1. Not very robust, can be broken by 0s or a len of <2
     v = np.array(v)
-    v = (v + np.amin(v) if np.amin(v) >= 0 else v - np.amin(v))
+    v = v - np.amin(v)
     return (2 * v / np.amax(v)) - 1
 
 
-def play_mic_signal(array=None, t=0.2):
+def play_mic_signal(array=None, t=None):
+    # plays the inputted array, or 'outputs/raw.txt' if array is None
     sd.default.samplerate = 20000.0  # default is 44100 or 48000
-    if array is None:
+
+    if array is None:  # no inputted array, read raw.txt
         array = np.loadtxt("outputs/raw.txt")
-    t = array[:, 0]
-    v = array[:, 1]
+        t = array[:, 0]
+        v = array[:, 1]
+    else:  # inputted array
+        array = np.array(array)
+        if array.ndim == 1:
+            if t is None:
+                t = [0, 0.2]  # no time info anywhere, assume 0.2s long.
+            elif len(t) == 1:
+                t = [0, t]
+            elif max(t) == min(t):  # wtf?
+                t = [0, 0.2]
+            v = array
+        else:  # simple, the input contained t and v
+            t = array[:, 0]
+            v = array[:, 1]
 
-    samplerate = t.shape[0] / (t.max() - t.min())
-
-    v = normalise(v)
-    sd.play(v, samplerate=samplerate, blocking=False, loop=True)
+    samplerate = v.shape[0] / (max(t) - min(t))
+    sd.play(normalise(v), samplerate=samplerate, blocking=False, loop=True)
     print("audio playing... raw mic signal")
     '''
     blocking (bool, optional) –
@@ -101,8 +114,7 @@ def play_spectra(file, t=0.2):
     plt.ioff()
 
     samplerate = 20000.0  # Hz
-    v = normalise(v)
-    sd.play(v, samplerate=samplerate, blocking=False, loop=True)
+    sd.play(normalise(v), samplerate=samplerate, blocking=False, loop=True)
     print("audio playing... spectra")
 
 
@@ -116,4 +128,4 @@ def notify_finish():
     # path = r'C:\Windows\Media\tada.wav'
     path = r'C:\Windows\Media\Speech On.wav'
     samples, samplerate = sf.read(path)
-    sd.play(samples, samplerate, blocking=False, loop=False)
+    sd.play(samples, samplerate=samplerate, blocking=False, loop=False)

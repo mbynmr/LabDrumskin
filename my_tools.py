@@ -150,14 +150,21 @@ def temp_get_oldest(voltage):
 
 
 def temp_to_str(temp):
-    # works for any temp from 10.00 to 99.99, not sure about any others though!
-    # todo I might even just want 2dp all the time.
-    tempstr = f"{temp:.4g}"
-    if len(tempstr.split(".")) == 1:
-        if len(tempstr) < 4:
-            return tempstr + ".00"
-        else:
-            return tempstr + ".0"
-    elif len(tempstr) < 5:
-        return tempstr + "0"
+    # converts any float to a string with 2 decimal places
+    tempstr = f"{temp:.2f}"  # 2 decimal places
+    if len(tempstr.split('.')) < 2:  # if both trailing 0s have been removed
+        return tempstr + '.00'
+    elif len(tempstr.split('.')[-1]) == 1:  # if one trailing 0 has been removed
+        return tempstr + '0'
     return tempstr
+    # # works for any temp from 10.00 to 99.99, not sure about any others though!
+    # # I might even just want 2dp all the time, rather than 4 sig figs
+    # tempstr = f"{temp:.4g}"
+    # if len(tempstr.split(".")) == 1:
+    #     if len(tempstr) < 4:
+    #         return tempstr + ".00"
+    #     else:
+    #         return tempstr + ".0"
+    # elif len(tempstr) < 5:
+    #     return tempstr + "0"
+    # return tempstr

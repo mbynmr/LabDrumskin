@@ -35,14 +35,13 @@ class Main:
         self.fit = tk.BooleanVar(self.w, value=True)
         self.temptrack = tk.BooleanVar(self.w, value=True)
         self.pause = tk.BooleanVar(self.w, value=False)
-        self.running = False
         self.sample_name = tk.StringVar(self.w, value='SAMPLENAME')
         sp = 'outputs'
         sp = r'C:/Users/mbynmr/Links/datastuff/PSY/Vary temperature'
         self.save_path = tk.StringVar(self.w, value=sp)
         self.t = tk.DoubleVar(self.w, value=0.2)
         self.runs = tk.IntVar(self.w, value=33)
-        self.freqstep = tk.DoubleVar(self.w, value=10)
+        self.freqstep = tk.DoubleVar(self.w, value=0)
         self.boundU = tk.DoubleVar(self.w, value=4000)
         self.boundL = tk.DoubleVar(self.w, value=50)
         self.tempL = tk.DoubleVar(self.w, value=20)
@@ -154,20 +153,22 @@ class Main:
         else:
             self.pause_text.set('Pause')
 
-    def update(self):
-        if self.temptrack.get() and not self.running:
+    def update(self, stop=None):
+        if stop is True:
+            return
+        # try: () except task already using daq card error: (don't continue self.after(update))
+        if self.temptrack.get():
             self.temp.set(round_sig_figs(grab_temp(self.dev_temp.get(), self.chan_temp.get(), num=250), sig_fig=4))
         self.w.after(600 - int((time.time() - self.time_start) % 600), self.update)  # update on a tick rate of 100/min
 
     def run(self):
-        # get inputs as they are needed and run measurements
-        self.running = True
+        self.update(stop=True)
+
+        # hand off to functions that get inputs and run measurements
         if self.run_type.get() == "autotemp":
-            self.run_autotemp()  # todo parallelise with self.w.after(1, self.run_autotemp()) but care for self.running!
+            self.w.after(1, self.run_autotemp())
         elif self.run_type.get() == "single":
-            self.run_single()
-        self.running = False
-        notify_finish()
+            self.w.after(1, self.run_single())
 
     def run_autotemp(self):
         at = AutoTemp(save_folder_path=self.save_path.get() + "/AutoTemp",
@@ -191,6 +192,9 @@ class Main:
         self.w.after(600, notify_finish)  # extra notify for autotemp as I may b distracted!
         at.close()
 
+        notify_finish()
+        self.w.after(1, self.update)
+
     def run_single(self):
         match self.method.get():
             case 'P':
@@ -212,11 +216,14 @@ class Main:
         if self.fit.get():
             self.w.after(1, fit, "outputs/output.txt", True)  # todo cutoff
 
+        notify_finish()
+        self.w.after(1, self.update)
+
     def calibrate(self):
-        self.running = True
+        self.update(stop=True)
         calibrate(mode='dual', c1=self.dev_signal.get() + '/' + self.chan_signal.get(),
                   c2=self.dev_temp.get() + '/' + self.chan_temp.get())
-        self.running = False
+        self.w.after(1, self.update)
 
     def resave_output(self):
         method = self.method.get()
