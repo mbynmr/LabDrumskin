@@ -183,7 +183,7 @@ def manual_peak_auto(save_path, cutoff=None, sample=None, printer=None):
         xy = xy[int(len(xy[:, 0]) * cutoff[0]):int(len(xy[:, 0]) * cutoff[1]), ...]
         fig, ax = plt.subplots()  # figsize=(16, 9)
         plt.get_current_fig_manager().full_screen_toggle()
-        ax.plot(xy[:, 0], xy[:, 1], '-D',  c='blue', mfc='red', mec='k', picker=10)
+        ax.plot(xy[:, 0], xy[:, 1], '-D', c='blue', mfc='red', mec='k', picker=10)
         # markeredgecolor       mec     color
         # markeredgewidth       mew     float
         # markerfacecolor       mfc     color
@@ -248,7 +248,7 @@ def aggregate():
         film_list.append(film)
         dic[film] = data_at_temps
 
-    file_path = r"C:\Users\mbynmr\OneDrive - The University of Nottingham\Documents" +\
+    file_path = r"C:\Users\mbynmr\OneDrive - The University of Nottingham\Documents" + \
                 r"\Shared - Mechanical Vibrations of Ultrathin Films\Lab\data\PDMS\AutoTemp\chosen"
     # save dict to file in nice format
     all = []
@@ -281,7 +281,7 @@ def aggregate_old(a_or_s):
                 'C': empty,  # 0.469
                 'T': empty,  # 0.557
                 'CF': empty  # 0.624
-                }  # [0.200, 0.245, 0.300, 0.424, 0.469, 0.557, 0.624]
+            }  # [0.200, 0.245, 0.300, 0.424, 0.469, 0.557, 0.624]
             # solvent_lookup = {''}
         case 'a':
             dic = {
@@ -292,7 +292,7 @@ def aggregate_old(a_or_s):
                 '5.5': empty,
                 '6': empty,
                 '7': empty,
-                }  # [3, 4, 4.5, 5.5, 6, 7]    # [1/3, 1/4, 1/4.5, 1/5.5, 1/6, 1/7]
+            }  # [3, 4, 4.5, 5.5, 6, 7]    # [1/3, 1/4, 1/4.5, 1/5.5, 1/6, 1/7]
             # radii in m: [1.5e-3, 2e-3, 2.25e-3, 2.75e-3, 3e-3, 3.5e-3]
             # 1/radius in 1/m: [(1e3)/1.5, (1e3)/2, (1e3)/2.25, (1e3)/2.75, (1e3)/3, (1e3)/3.5]
         case _:
@@ -333,6 +333,46 @@ def colourplot():
                        [0.200, 0.245, 0.300, 0.424, 0.469, 0.557, 0.624])
     data = np.loadtxt(file_name)
     plt.pcolor(x, y, data, cmap=plt.get_cmap("inferno"))
+    plt.show()
+
+
+def scatter3d(save_path=None, printer=None):
+    if save_path is None:
+        save_path = r"C:\Users\mbynmr\OneDrive - The University of Nottingham\Documents\Shared - Mechanical " + \
+                    r"Vibrations of Ultrathin Films\Lab\data\PSY\Vary temperature\AutoTemp"
+    if printer is None:
+        printer = sys.stderr
+    if "/AutoTemp" not in save_path and r"\AutoTemp" not in save_path:
+        save_path = save_path + "/AutoTemp"
+
+    files = os.listdir(save_path)
+    files.sort()
+    thicknesses = {'125': 54, '2': 104, '250': 147, '3': 182, '225': 121, '09': 32, '9': 32, '150': 44, '1': 41}
+
+    my_dpi = 102
+    fig = plt.figure(figsize=(600 / my_dpi, 600 / my_dpi), dpi=my_dpi)
+    ax = fig.add_subplot(projection='3d')
+
+    skip = 0
+    for i, file in tqdm(enumerate(files), total=len(files), file=printer, ncols=42):
+        try:
+            method = file.split('.txt')[0].split('_')[5]
+        except IndexError:
+            skip += 1
+            continue
+        if method != 'TSm':
+            skip += 1
+            continue
+        sample_name = '_'.join(file.split('.txt')[0].split('_T')[-1].split('_')[1:3])
+        st = ''.join([c if c.isdigit() else ' ' for c in sample_name])
+        conc = str([int(s) for s in st.split() if s.isdigit()][0])
+        data = np.loadtxt(save_path + "/" + file)
+        ys = data[:, -1]
+        zs = data[:, 1]
+        xs = np.ones_like(ys) * thicknesses[conc]
+
+        colours = np.arange(len(ys))
+        ax.scatter(xs, ys, zs, c=colours, marker='.')
     plt.show()
 
 

@@ -7,7 +7,7 @@ import time
 from noisyopt import minimizeCompass
 import sys
 
-from my_tools import ax_lims, copy2clip
+from my_tools import ax_lims, copy2clip, round_sig_figs
 from fitting import fit_fast
 from IO_setup import set_up_signal_generator_sine, set_up_signal_generator_pulse
 
@@ -21,6 +21,10 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=10, devchan=
     """
     if freq is None:
         freq = [50, 4000]
+
+    if freqstep == 0:  # automatic frequency step selection
+        freqstep = (freq[0] - freq[1]) / 300
+        freqstep = round_sig_figs(freqstep, 2, method='d')
 
     if GUI is None:
         printer = sys.stderr

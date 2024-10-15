@@ -9,7 +9,7 @@ from measurement import measure_sweep, measure_pulse_decay, measure_adaptive
 from automation import AutoTemp
 from IO_setup import list_devices, calibrate, grab_temp
 from my_tools import resave_output, round_sig_figs
-from aggregation import manual_peak_auto  # , aggregate, colourplot, manual_peak
+from aggregation import manual_peak_auto, scatter3d  # , aggregate, colourplot, manual_peak
 from fitting import fit  # , find_peaks
 from timefrequency import fft_magnitude_and_phase, time_frequency_spectrum2electricboogaloo
 from wireplot import wireplot_manager
@@ -32,6 +32,7 @@ class Main:
         self.method = tk.StringVar(self.w, value='P')
         self.run_type = tk.StringVar(self.w, value='single')
         self.repeats = tk.IntVar(self.w, value=1)
+        self.counter = tk.IntVar(self.w, value=-1)
         self.fit = tk.BooleanVar(self.w, value=True)
         self.temptrack = tk.BooleanVar(self.w, value=True)
         self.pause = tk.BooleanVar(self.w, value=False)
@@ -66,7 +67,7 @@ class Main:
         self.Writer = Writer(self.print_box)
 
         self.time_start = time.time()
-        self.w.after(600, self.update)
+        self.w.after(600, self.update, False)
         self.w.mainloop()
 
     def widgets(self, devs, chans):
@@ -88,6 +89,7 @@ class Main:
         tk.Button(self.w, text='Play spectra', command=audio_spectra).place(relx=0.85, rely=0.15)
         tk.Button(self.w, text='Stop audio', command=audio_stop).place(relx=0.85, rely=0.225)
 
+        tk.Label(self.w, textvariable=self.counter).place(relx=0.73, rely=0.05)
         tk.Label(self.w, text="Temperature").place(relx=0.625, rely=0.01)
         tk.Entry(self.w, textvariable=self.tempL, width=5).place(relx=0.625, rely=0.19)
         tk.Entry(self.w, textvariable=self.tempU, width=5).place(relx=0.725, rely=0.19)
@@ -153,24 +155,29 @@ class Main:
         else:
             self.pause_text.set('Pause')
 
-    def update(self, stop=None):
-        if stop is True:
-            return
-        # try: () except task already using daq card error: (don't continue self.after(update))
-        if self.temptrack.get():
-            self.temp.set(round_sig_figs(grab_temp(self.dev_temp.get(), self.chan_temp.get(), num=250), sig_fig=4))
-        self.w.after(600 - int((time.time() - self.time_start) % 600), self.update)  # update on a tick rate of 100/min
+    def update(self, stop=None, i=[0]):
+        # credit for this neat mutable argument call counter trick goes to https://stackoverflow.com/a/23160861
+        if stop is not None:
+            i[0] = 0  # reset counter
+            if not stop:
+                i[0] = 1
+        self.counter.set(i[0])
+        if i[0] != 0:
+            i[0] += 1
+            # try: () except task already using daq card error: (don't continue self.after(update))
+            if self.temptrack.get():
+                self.temp.set(round_sig_figs(grab_temp(self.dev_temp.get(), self.chan_temp.get(), num=250), sig_fig=4))
+            self.w.after(600 - int((time.time() - self.time_start) % 600), self.update)  # update on a rate of 100/min
 
     def run(self):
-        self.update(stop=True)
-
         # hand off to functions that get inputs and run measurements
         if self.run_type.get() == "autotemp":
-            self.w.after(1, self.run_autotemp())
+            self.run_autotemp()
         elif self.run_type.get() == "single":
-            self.w.after(1, self.run_single())
+            self.run_single()
 
     def run_autotemp(self):
+        self.update(stop=True)
         at = AutoTemp(save_folder_path=self.save_path.get() + "/AutoTemp",
                       dev_signal=self.dev_signal.get() + '/' + self.chan_signal.get(), vpp=self.vpp.get(),
                       dev_temp=self.dev_temp.get() + '/' + self.chan_temp.get(),
@@ -193,9 +200,10 @@ class Main:
         at.close()
 
         notify_finish()
-        self.w.after(1, self.update)
+        self.w.after(1, self.update, False)
 
     def run_single(self):
+        self.update(stop=True)
         match self.method.get():
             case 'P':
                 measure_pulse_decay(self.dev_signal.get() + '/' + self.chan_signal.get(), runs=self.runs.get(),
@@ -217,13 +225,13 @@ class Main:
             self.w.after(1, fit, "outputs/output.txt", True)  # todo cutoff
 
         notify_finish()
-        self.w.after(1, self.update)
+        self.w.after(1, self.update, False)
 
     def calibrate(self):
         self.update(stop=True)
         calibrate(mode='dual', c1=self.dev_signal.get() + '/' + self.chan_signal.get(),
                   c2=self.dev_temp.get() + '/' + self.chan_temp.get())
-        self.w.after(1, self.update)
+        self.w.after(1, self.update, False)
 
     def resave_output(self):
         method = self.method.get()
@@ -287,10 +295,11 @@ class Writer:
 
 def buttonfunc():
     print("button")
-    fft_magnitude_and_phase()
-    # a = input("done?")
-    time_frequency_spectrum2electricboogaloo(sigma=1e2)
-    time_frequency_spectrum2electricboogaloo(sigma=1e3)
+    scatter3d()
+    # fft_magnitude_and_phase()
+    # # a = input("done?")
+    # time_frequency_spectrum2electricboogaloo(sigma=1e2)
+    # time_frequency_spectrum2electricboogaloo(sigma=1e3)
 
 
 def audio_raw():

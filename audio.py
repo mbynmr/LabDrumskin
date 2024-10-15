@@ -4,6 +4,8 @@ import sounddevice as sd
 import soundfile as sf
 import datetime
 
+from IO_setup import set_up_signal_generator_pulse
+
 
 def normalise(v):
     # put v in the range -1 to 1. Not very robust, can be broken by 0s or a len of <2
@@ -129,3 +131,29 @@ def notify_finish():
     path = r'C:\Windows\Media\Speech On.wav'
     samples, samplerate = sf.read(path)
     sd.play(samples, samplerate=samplerate, blocking=False, loop=False)
+    
+    # sig_gen = set_up_signal_generator_pulse()
+    #
+    # my_WFM = 262000 * [1]  # works fine (it is just below 1MB)
+    # my_WFM = 263000*[1]  # fails (it is just above 1MB)
+    # # my_WFM = np.sin(2 * np.pi * np.linspace(0, 20, 1000))
+    # print(sig_gen.query('*IDN?'))  # works fine
+    #
+    # # sig_gen.timeout = 300000
+    # sig_gen.write('*CLS;*RST')
+    # _ = sig_gen.query('*OPC?')
+    # sig_gen.write('SOURce1:DATA:VOLatile:CLEar')
+    # # sig_gen.write("FREQ 1000")  # frequency is 1kHz
+    # # sig_gen.write("VOLT 1")  # amplitude is 1Vpp
+    # sig_gen.write('FORM:BORD NORM')  # set the byte order
+    #
+    # print('Downloading Waveform...')
+    # bytes_sent = sig_gen.write_binary_values('SOUR1:DATA:ARB myARB,', my_WFM, datatype='f', is_big_endian=True)
+    # print(bytes_sent)
+    # sig_gen.write('*WAI')  # Wait for the waveform to load
+    # print('Download Complete')
+    #
+    # print("OUTPUT ON NOW PLZ TY")
+    # sig_gen.write("OUTPut ON")
+    #
+    # # sig_gen.close()  # close connection to device

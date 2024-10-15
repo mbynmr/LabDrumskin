@@ -68,6 +68,8 @@ def fit(file_name_and_path, copy=True, cutoff=None):
     if copy:
         try:
             x0str = f"{values[1]:.{int(len(str(values[1]).split('.')[0]) + len(f'{errors[1]:.1g}'.split('.')[1]))}g}"
+            # seen this error caused by this above line:
+            # TypeError: unsupported format string passed to numpy.ndarray.__format__
         except IndexError:
             x0str = f"{values[1]:.5g}"
         print(f"\nx0 = " + x0str + f"\nx0std = {errors[1]:.1g}")

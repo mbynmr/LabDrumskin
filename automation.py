@@ -290,7 +290,7 @@ class AutoTemp:
         repeats = int(repeats)
         if repeats < 2:
             repeats = int(2)
-        if freqstep == 0:
+        if freqstep == 0:  # automatic frequency step selection
             freqstep = (max(bounds) - min(bounds)) / 300
             freqstep = round_sig_figs(freqstep, 2, method='d')
 
