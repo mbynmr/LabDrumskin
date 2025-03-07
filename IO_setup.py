@@ -3,11 +3,12 @@ import nidaqmx as ni
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+from tqdm import tqdm
 
 from my_tools import ax_lims, temp_get
 
 
-def set_up_daq(mode, c1, c2=None, rate=int(20e3), t=0.2):
+def set_up_daq(mode, c1, c2=None, rate=int(20e3), t=0.1):
     # easy creation of one of the two task types needed
     task = ni.Task()
     match mode:
@@ -80,29 +81,53 @@ def calibrate(**kwargs):
     line, = ax.plot([0, 0], [0, 0], 'k')
     axt = ax.twinx()
     linet, = axt.plot([0, 0], [0, 0], 'r')
-    # plt.xlabel("elapsed time / s")
-    temps = []
-    realts = []
+    plt.xlabel("elapsed time / s")
+    vs = []
+    ts = []
     starttime = time.time()
     while plt.fignum_exists(fig.number):
-        _, t = task.read(num)
-        temps.append(np.mean(t))
-        realt = np.mean(temp_get(t))
-        realts.append(realt)
-        plt.title(f"reading is {np.mean(t):.6g}V, meaning temp is {realt:.6g}C")
-        # print(np.mean(t))
+        # for n in tqdm(range(int(2e2) + 1)):
+        _, v = task.read(num)
+        # _, v2 = task.read(num)
+        # _, v3 = task.read(num)
+        # _, v4 = task.read(num)
+        # _, v5 = task.read(num)
+        # v = [*v1, *v2, *v3, *v4, *v5]
+        vs.append(np.mean(v))
+        t = np.mean(temp_get(v))
+        ts.append(t)
+        plt.title(f"reading is {np.mean(v):.6g}V, meaning temp is {t:.6g}C")
 
         elapsed = time.time() - starttime
-        line.set_xdata(np.linspace(start=0, stop=elapsed, endpoint=True, num=len(temps)))
-        line.set_ydata(temps)
+        line.set_xdata(np.linspace(start=0, stop=elapsed, endpoint=True, num=len(vs)))
+        line.set_ydata(vs)
         ax.set_xlim([0, elapsed])
-        ax.set_ylim(ax_lims(temps))
+        ax.set_ylim(ax_lims(vs))
 
-        linet.set_xdata(np.linspace(start=0, stop=elapsed, endpoint=True, num=len(temps)))
-        linet.set_ydata(realts)
+        linet.set_xdata(np.linspace(start=0, stop=elapsed, endpoint=True, num=len(vs)))
+        linet.set_ydata(ts)
         axt.set_xlim([0, elapsed])
-        axt.set_ylim(ax_lims(realts))
+        axt.set_ylim(ax_lims(ts))
 
         fig.canvas.draw()
         fig.canvas.flush_events()
     task.close()
+
+    # t = elapsed
+    # rate = n / t
+    # min_freq = 1 / t
+    # max_freq = rate / 2  # = (num / 2) / t  # aka Nyquist frequency
+    # freqs = np.linspace(start=min_freq, stop=max_freq, num=int(n / 2), endpoint=True)
+    # fft = np.fft.fft(vs - np.mean(vs))
+    # fs = np.abs(fft[1:int(n / 2) + 1])  # POWER SPECTRA (well, almost, it needs to be squared)
+    # arr = np.zeros([len(fs), 2])
+    # arr[:, 0] = freqs
+    # arr[:, 1] = fs
+    # np.savetxt(r'C:\Users\mbynmr\OneDrive - The University of Nottingham\Documents'
+    #            + r'\Shared - Mechanical Vibrations of Ultrathin Films\Lab\data\tests\temperature calibration'
+    #            + r'\21C_CJ_off.txt', arr, fmt='%.6g')
+
+    # figend, axend = plt.subplots()
+    # axend.plot(np.linspace(start=0, stop=elapsed, endpoint=True, num=len(vs)), vs)
+    # axend.plot(freqs, fs)
+    # plt.show()

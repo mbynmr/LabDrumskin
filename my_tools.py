@@ -128,6 +128,17 @@ def copy2clip(txt):
 
 
 def temp_get(voltage):  # processes an array of voltages to return the corresponding array of temps (can be len = 1)
+    return (((100 - 41.31) / (-1.893 - 0)) * np.asarray(voltage)) + 41.31
+    # return 40.387319354559 - 30.892710760177 * voltage
+    # these values come from boiling at -1.893V and unplugged readingggggggggg?????????? don't be stupid that's so wrong
+    # todo this is stupid and wrong: why tf go off 41.31 for the zero? maybe look up what it should be lol.
+    # the temperature controller being accurate which we can't trust. in boiling water it did get 100.5
+    # 06/03/2025 first time this function replaced 'temp_get_not_new' in data
+    # change 100C from xx to xx
+    # files need to be updated. :>
+
+
+def temp_get_not_new(voltage):
     return (((100 - 41.294) / (-1.785 - 0)) * np.asarray(voltage)) + 41.294
     # 25/04/2024
     # change 100C from -1.600 to -1.785

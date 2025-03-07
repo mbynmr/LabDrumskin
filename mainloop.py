@@ -36,9 +36,10 @@ class Main:
         self.fit = tk.BooleanVar(self.w, value=True)
         self.temptrack = tk.BooleanVar(self.w, value=True)
         self.pause = tk.BooleanVar(self.w, value=False)
-        self.sample_name = tk.StringVar(self.w, value='SAMPLENAME')
+        self.sample_name = tk.StringVar(self.w, value='PTM')
         sp = 'outputs'
         sp = r'C:/Users/mbynmr/Links/datastuff/PSY/Vary temperature'
+        sp = r'C:/Users/mbynmr/Links/datastuff/PtM'
         self.save_path = tk.StringVar(self.w, value=sp)
         self.t = tk.DoubleVar(self.w, value=0.2)
         self.runs = tk.IntVar(self.w, value=33)
@@ -158,7 +159,7 @@ class Main:
     def update(self, stop=None, i=[0]):
         # credit for this neat mutable argument call counter trick goes to https://stackoverflow.com/a/23160861
         if stop is not None:
-            i[0] = 0  # reset counter
+            i[0] -= i[0]  # reset counter
             if not stop:
                 i[0] = 1
         self.counter.set(i[0])
