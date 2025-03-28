@@ -127,15 +127,64 @@ def copy2clip(txt):
     return check_call('echo ' + txt.strip() + '|clip', shell=True)
 
 
+def time_from_filename(file):
+    s = file.split("_T")[0].split("_")
+    t = float(s[2]) * 60 * 60 * 24
+    t += float(s[3]) * 60 * 60
+    t += float(s[4]) * 60
+    try:
+        t += float(s[5])
+    except IndexError:  # old files don't have seconds and throw up this error
+        pass
+    return t
+
+
+def temp_from_filename(file):
+    try:
+        temp_in_file = float(file.split('.txt')[0].split('_')[-1])  # temperature from the file name
+    except ValueError:
+        return -1
+
+    # 2025_03_10_13_52_51
+    # 2025, 03, 10, 13, 52, 51
+    # [yyy, mm, dd, hh, mm, ss]
+    # set midnight 2020/01/01 as 0 time
+    # set a month as always 31 days (who cars). make 'date' be time after 2020 in hours.
+    s = file.split("_T")[0].split("_")
+    date = (float(s[0]) - 2020) * 12 * 31 * 24
+    date += float(s[1]) * 31 * 24
+    date += float(s[2]) * 24
+    date += float(s[3])
+
+    # todo finish this
+    # if date < (((4 * 12) + 4) * 31 + 25) * 24:  # before 25/04/2024 is temp_get_old. files are claimed to be updated
+    #     temp_corr = 1
+    if date < (((5 * 12) + 3) * 31 + 6) * 24:  # before 06/03/2025 is temp_get_not_new
+        temp_corr = 1  # convert from temp_get_not_new to temp_get
+        # return (((100 - 41.294) / (-1.785 - 0)) * np.asarray(voltage)) + 41.294
+        temp_corr = temp_get((temp_in_file - 41.294) / ((100 - 41.294) / (-1.785 - 0)))
+    elif date < (((5 * 12) + 3) * 31 + 10) * 24 + 14:  # before 10/03/2025 @ 14:00 exactly is temp_get_nearly_new
+        temp_corr = 1  # convert from temp_get_nearly_new to temp_get
+    else:  # after 10/03/2025 @ 14:00 exactly is the current temp_get
+        temp_corr = temp_in_file
+    return temp_corr
+
+
 def temp_get(voltage):  # processes an array of voltages to return the corresponding array of temps (can be len = 1)
+    return 40.3593629746 - 31.098754907792 * np.asarray(voltage)
+    # comes from fit to what the temperature controller said at a series of temperatures
+    # the temperature controller being accurate we can't trust 100%. in boiling water it got 100.5 consistently
+    # 10/03/2025 @ 14:00 exactly first time this function replaced 'temp_get_nearly_new' in data
+    # files ARE NOT UPDATED. KEEP FILES THE SAME if they are created before this point.
+
+
+def temp_get_nearly_new(voltage):
     return (((100 - 41.31) / (-1.893 - 0)) * np.asarray(voltage)) + 41.31
-    # return 40.387319354559 - 30.892710760177 * voltage
     # these values come from boiling at -1.893V and unplugged readingggggggggg?????????? don't be stupid that's so wrong
     # todo this is stupid and wrong: why tf go off 41.31 for the zero? maybe look up what it should be lol.
-    # the temperature controller being accurate which we can't trust. in boiling water it did get 100.5
     # 06/03/2025 first time this function replaced 'temp_get_not_new' in data
     # change 100C from xx to xx
-    # files need to be updated. :>
+    # files ARE NOT UPDATED. KEEP FILES THE SAME
 
 
 def temp_get_not_new(voltage):

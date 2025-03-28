@@ -94,7 +94,13 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=10, devchan=
                 out.write(f"{f:.6g} {data:.6g}\n")
 
                 # update visual plot of data
-                line_current.set_ydata(signal)
+
+                # smaller to plot
+                # line_current.set_ydata(signal)
+                indexes_for_speedy_plot = [np.sort(np.random.choice(len(signal), int(0.1 * len(signal))))]
+                line_current.set_ydata(np.array(signal)[indexes_for_speedy_plot])
+                line_current.set_xdata(np.array(times)[indexes_for_speedy_plot])
+
                 if i > 0:
                     indexes = data_list.nonzero()
                     line_all.set_xdata(freqs[indexes])

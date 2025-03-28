@@ -59,6 +59,7 @@ def set_up_signal_generator_pulse():
     # to do find optimal pulse width
     # maybe try different waveform generators
     a335.write('FUNCtion:PULSe:WIDTh 0.0001')  # best compromise between width and power is 0.0001 = 100 micro second
+    # for future reference the pulses are 10ns leading and trailing edges, 100us width, 10Vpp
 
     # a335.write('DISP:TEXT "Test running! Be quiet please"')
 

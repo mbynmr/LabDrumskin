@@ -6,7 +6,7 @@ import os
 from tqdm import tqdm
 import sys
 
-from my_tools import resave_auto
+from my_tools import resave_auto, time_from_filename, temp_from_filename
 from fitting import fit_agg, fit
 
 
@@ -151,12 +151,21 @@ def manual_peak_auto(save_path, cutoff=None, sample=None, printer=None):
 
     files = os.listdir(spectra_path)
     files.sort()
+    indexes = []
+    for i in range(len(files)):
+        f = files[i]
+        if f[4] != '_' or f[7] != '_' or f[10] != '_' or f[13] != '_' or f[16] != '_':
+            print(f'removing {f} at {i}')
+            indexes.append(i)
     data = np.zeros([len(files), 4])
+    for i in sorted(indexes, reverse=True):
+        files.pop(i)
     # for Veusz (not zero indexed D: oh noes)
     # datacol1 = time
     # datacol2 = frequency peak value
     # datacol3 = error in frequency
     # datacol4 = temperature
+    print(files)
 
     skip = 0
     for i, file in tqdm(enumerate(files), total=len(files), file=printer, ncols=42):
@@ -168,16 +177,6 @@ def manual_peak_auto(save_path, cutoff=None, sample=None, printer=None):
         if sample_name != sample:
             skip += 1
             continue
-        method = file.split("_T")[1][0]
-
-        s = file.split("_T")[0].split("_")
-        t = float(s[2]) * 60 * 60 * 24
-        t += float(s[3]) * 60 * 60
-        t += float(s[4]) * 60
-        try:
-            t += float(s[5])
-        except IndexError:  # old files don't have seconds and throw up this error
-            pass
 
         xy = np.loadtxt(spectra_path + "/" + file)
         xy = xy[int(len(xy[:, 0]) * cutoff[0]):int(len(xy[:, 0]) * cutoff[1]), ...]
@@ -196,13 +195,10 @@ def manual_peak_auto(save_path, cutoff=None, sample=None, printer=None):
         while np.loadtxt("outputs/manual.txt")[-1] == -1:
             plt.waitforbuttonpress()
 
-        data[i, 0] = t
+        data[i, 0] = time_from_filename(file)
         data[i, 1] = np.loadtxt("outputs/manual.txt")[0]
         data[i, 2] = 10  # todo error in Hz
-        try:
-            data[i, 3] = float(file.split('.txt')[0].split('_')[-1])  # temperature from the file name
-        except ValueError:
-            data[i, 3] = -1
+        data[i, 3] = temp_from_filename(file)
         # print(data[i, ...])
         plt.close(fig)
 
@@ -212,7 +208,7 @@ def manual_peak_auto(save_path, cutoff=None, sample=None, printer=None):
     data[:, 0] = data[:, 0] - data[0, 0]
     np.savetxt("outputs/manual.txt", data, fmt='%.6g')
     print("\ndone!")
-    resave_auto(save_path=save_path, sample_name=sample, method=method)
+    resave_auto(save_path=save_path, sample_name=sample, method=file.split("_T")[1][0])
 
 
 def on_pick(event):
