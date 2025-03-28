@@ -236,7 +236,7 @@ def aggregate():
             break  # end if selected end!
         data_at_temps = np.zeros_like(temps)
         for i, t in enumerate(temps):
-            # todo atm it just searches for nearest temperature. I want nearest temp with lowest error data[:, 2]
+            # old to do atm it just searches for nearest temperature. I want nearest temp with lowest error data[:, 2]
             ns = np.argwhere((np.abs(data[:, 0] - t)) < 1)  # if less than 1C out
             if len(ns) != 0:
                 data_at_temps[i] = data[ns[data[ns, 2].argmin()], 1]
@@ -308,7 +308,7 @@ def aggregate_old(a_or_s):
         data = np.loadtxt(file_name)
         data_at_temps = np.zeros_like(temps)
         for i, t in enumerate(temps):
-            # todo atm it just searches for nearest temperature. I want nearest temp with lowest error data[:, 2]
+            # atm it just searches for nearest temperature. I want nearest temp with lowest error data[:, 2]
             ns = np.argwhere((np.abs(data[:, 0] - t)) < 1)  # if less than 1C out
             if len(ns) != 0:
                 data_at_temps[i] = data[ns[data[ns, 2].argmin()], 1]

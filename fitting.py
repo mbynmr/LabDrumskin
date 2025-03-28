@@ -106,7 +106,7 @@ def fit_agg(file_name_and_path, cutoff=None):
     if cutoff is not None:
         if 0 <= cutoff[0] < cutoff[1] <= 1:
             data = data[int(len(data[:, 0]) * cutoff[0]):int(len(data[:, 0]) * cutoff[1])]
-    data = data[np.argwhere(data[:, 1] > np.mean(data[:, 1])), :]  # todo ignore small values it seems... hmmm...
+    data = data[np.argwhere(data[:, 1] > np.mean(data[:, 1])), :]  # to do ignore small values it seems... hmmm...
     # data = data[np.argwhere(data[:, 1] > np.mean(data[:, 1])), :]
     x = data[:, 0]
     y = data[:, 1]

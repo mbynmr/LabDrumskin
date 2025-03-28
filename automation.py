@@ -17,13 +17,13 @@ from aggregation import resave
 def fitstuff(data, freqs, bounds, temp, overall_start, freqstep=5):
     # fit
     # (cursed function) (why is this even here for autotemp? mayb i just remove it.)
-    # todo remove this function at some point plz
+    # to do remove this function at some point plz
     try:
         out = curve_fit(f=lorentzian, xdata=freqs, ydata=data, bounds=([0, bounds[0], 0, 0],
                                                                        [1e5, bounds[-1], 2, 1e5]))
         value, error = out[0], out[1]
         error = np.sqrt(np.diag(error))
-        if error[1] > 2e1:  # todo tweak
+        if error[1] > 2e1:  # to do tweak
             # print("curve_fit returned a value with too low confidence")
             raise RuntimeError
         print(f"\rTemp {temp:.3g}, peak at {value[1]:.6g} pm {error[1]:.2g} Hz", end='')
@@ -119,7 +119,7 @@ class Measurer:
                     response = signal
                     # process and store
                     data_list[:, i - 1] = np.abs(np.fft.fft(response - np.mean(response))[1:int(self.num / 2) + 1])
-                # todo look into the timings... I can surely speed this up?
+                # to do look into the timings... I can surely speed this up?
                 if sleep_time - (time.time() - start) > 1e-3:
                     time.sleep(sleep_time - (time.time() - start))  # wait for next cycle
                 else:
@@ -440,7 +440,7 @@ class AutoTemp:
             if GUI is None:
                 time.sleep(5)
             else:
-                GUI.w.after(5000)  # todo does this work? yes, but it is no better than sleep.
+                GUI.w.after(5000)  # to do does this work? yes, but it is no better than sleep.
 
             # printing current temp (trying to avoid annoying formatting)
             print(f"\rMoving on at {temp_should_be + (-0.25 if up else 0.25):.4g}, current temp is {temp_to_str(temp)}",
