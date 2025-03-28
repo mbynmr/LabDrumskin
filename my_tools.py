@@ -21,7 +21,7 @@ def round_sig_figs(x, sig_fig, method='d'):
 #     if len(data) < 2:
 #         return [min(data) - 1, max(data) + 1]
 #
-#     # todo edge cases: e.g. where (max - min) = 1000 exactly.
+#     # need to look at edge cases: e.g. where (max - min) = 1000 exactly.
 #     mag = int(0)
 #     if np.isclose(max(data), min(data), rtol=0, atol=10 ** mag):
 #         up = False
@@ -156,7 +156,6 @@ def temp_from_filename(file):
     date += float(s[2]) * 24
     date += float(s[3])
 
-    # todo finish this
     # if date < (((4 * 12) + 4) * 31 + 25) * 24:  # before 25/04/2024 is temp_get_old. files are claimed to be updated
     #     temp_corr = 1
     if date < (((5 * 12) + 3) * 31 + 6) * 24:  # before 06/03/2025 is temp_get_not_new
@@ -181,7 +180,7 @@ def temp_get(voltage):  # processes an array of voltages to return the correspon
 def temp_get_nearly_new(voltage):
     return (((100 - 41.31) / (-1.893 - 0)) * np.asarray(voltage)) + 41.31
     # these values come from boiling at -1.893V and unplugged readingggggggggg?????????? don't be stupid that's so wrong
-    # todo this is stupid and wrong: why tf go off 41.31 for the zero? maybe look up what it should be lol.
+    # this is stupid and wrong: why tf go off 41.31 for the zero? maybe look up what it should be lol.
     # 06/03/2025 first time this function replaced 'temp_get_not_new' in data
     # change 100C from xx to xx
     # files ARE NOT UPDATED. KEEP FILES THE SAME
