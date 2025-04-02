@@ -132,7 +132,7 @@ class Measurer:
                 if np.argmax(np.abs(signal)) < len(signal) / 3:
                     complete = True
         self.sig_gen.write("OUTPut OFF")
-        return np.nanmean(data_list, 1)
+        return np.nanmean(data_list ** 2, 1)  # 2025/04/02 big change: put in the ** 2 operation
 
     def measure_sweep(self, freqs):  # returns response to each frequency and the average temperature during measurement
         self.sig_gen.write("OUTPut ON")
@@ -197,7 +197,7 @@ class AutoTemp:
         max_freq = self.M.rate / 2  # = (num / 2) / t  # aka Nyquist frequency
         # self.num_freqs = (self.max_freq - 0) / self.min_freq
         freqs = np.linspace(start=min_freq, stop=max_freq, num=int(num / 2), endpoint=True)
-        data_list = np.ones([len(freqs), repeats]) * np.nan
+        # data_list = np.ones([len(freqs), repeats]) * np.nan
 
         print("starting autotemp...")
         self.M.task_close()
@@ -217,10 +217,10 @@ class AutoTemp:
             temp = (float(temp) + float(np.nanmean(temp_get(self.M.task_read()[1])))) / 2  # temp before + after / 2
 
             # data/file management
-            data_list[:, i] = data
+            # data_list[:, i] = data
             arr = np.zeros([len(data), 2])
             arr[:, 0] = freqs
-            arr[:, 1] = data
+            arr[:, 1] = data ** 2
             np.savetxt("outputs/output.txt", arr)
             resave_output(method=f"TP{str(i).zfill(len(str(repeats - 1)))}",
                           save_path=self.save_folder_path + r"\Spectra", temperature=temp_to_str(temp),

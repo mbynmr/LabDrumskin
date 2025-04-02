@@ -154,7 +154,11 @@ def manual_peak_auto(save_path, cutoff=None, sample=None, printer=None):
     indexes = []
     for i in range(len(files)):
         f = files[i]
-        if f[4] != '_' or f[7] != '_' or f[10] != '_' or f[13] != '_' or f[16] != '_':
+        try:
+            if f[4] != '_' or f[7] != '_' or f[10] != '_' or f[13] != '_' or f[16] != '_':
+                print(f'removing {f} at {i}')
+                indexes.append(i)
+        except IndexError:
             print(f'removing {f} at {i}')
             indexes.append(i)
     data = np.zeros([len(files), 4])

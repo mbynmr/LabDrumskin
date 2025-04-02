@@ -261,7 +261,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None)
     # file management
     arr = np.zeros([len(freqs), 4])
     arr[:, 0] = freqs
-    arr[:, 1] = np.nanmean(data_list, 1)  # NON-normalised
+    arr[:, 1] = np.nanmean(data_list ** 2, 1)  # NON-normalised  # 2025/04/02 big change: put in the ** 2 operation
     arr[:, 2] = np.nanmean(datar_list, 1)
     arr[:, 3] = np.nanmean(datai_list, 1)
     np.savetxt("outputs/output.txt", arr, fmt='%.6g')
