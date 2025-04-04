@@ -227,3 +227,19 @@ def temp_to_str(temp):
     # elif len(tempstr) < 5:
     #     return tempstr + "0"
     # return tempstr
+
+
+def strip_nums(s: str):  # strips off trailing numbers if any element is a letter
+    # for i in range(10):
+    #     s = s.split(f'{i}')[0]
+    while np.any(e.isalpha() for e in s) and not s[-1].isalpha:
+        s = s[:-2]
+    return s
+
+
+def normalise(v):
+    # put v in the range -1 to 1. Not very robust, can be broken by 0s or a len of <2
+    v = np.array(v)
+    v = v - np.amin(v)
+    return (2 * v / np.amax(v)) - 1
+

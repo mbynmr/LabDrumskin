@@ -169,7 +169,7 @@ def manual_peak_auto(save_path, cutoff=None, sample=None, printer=None):
     # datacol2 = frequency peak value
     # datacol3 = error in frequency
     # datacol4 = temperature
-    print(files)
+    # print(files)
 
     skip = 0
     for i, file in tqdm(enumerate(files), total=len(files), file=printer, ncols=42):
@@ -374,11 +374,3 @@ def scatter3d(save_path=None, printer=None):
         colours = np.arange(len(ys))
         ax.scatter(xs, ys, zs, c=colours, marker='.')
     plt.show()
-
-
-def strip_nums(s: str):  # strips off trailing numbers if any element is a letter
-    # for i in range(10):
-    #     s = s.split(f'{i}')[0]
-    while np.any(e.isalpha() for e in s) and not s[-1].isalpha:
-        s = s[:-2]
-    return s

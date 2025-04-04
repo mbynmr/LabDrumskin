@@ -4,14 +4,8 @@ import sounddevice as sd
 import soundfile as sf
 import datetime
 
-from IO_setup import set_up_signal_generator_pulse
-
-
-def normalise(v):
-    # put v in the range -1 to 1. Not very robust, can be broken by 0s or a len of <2
-    v = np.array(v)
-    v = v - np.amin(v)
-    return (2 * v / np.amax(v)) - 1
+# from IO_setup import set_up_signal_generator_pulse
+from my_tools import normalise
 
 
 def play_mic_signal(array=None, t=None):

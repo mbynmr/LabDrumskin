@@ -3,7 +3,6 @@ import nidaqmx as ni
 import numpy as np
 import matplotlib.pyplot as plt
 import time
-from tqdm import tqdm
 
 from my_tools import ax_lims, temp_get
 

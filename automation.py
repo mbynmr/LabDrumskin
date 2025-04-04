@@ -1,7 +1,5 @@
 import io
 import numpy as np
-import matplotlib.pyplot as plt
-import nidaqmx as ni
 # from tqdm import tqdm
 import time
 from scipy.optimize import curve_fit
