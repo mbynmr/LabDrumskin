@@ -96,6 +96,7 @@ def fit(file_name_and_path, copy=True, cutoff=None):
     plt.xlabel("Frequency / Hz")
     plt.ylabel("Response RMS / V")
     plt.ylim([0, plt.ylim()[1]])
+    plt.tight_layout()
     plt.show()
 
 

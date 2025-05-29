@@ -245,8 +245,8 @@ class Main:
                       sample=self.sample_name.get(), copy=False)
 
     def manual_peak(self):
-        manual_peak_auto(save_path=self.save_path.get(), cutoff=[0, 1], sample=self.sample_name.get(),
-                         printer=self.Writer)
+        manual_peak_auto(save_path=self.save_path.get(), cutoff=[self.boundL.get(), self.boundU.get()],
+                         sample=self.sample_name.get(), printer=self.Writer)
         # # manual_peak(save_path=save_path + r"\AutoTemp", cutoff=[0.05, 0.6])
         # resave(save_path + r"\AutoTemp")
 

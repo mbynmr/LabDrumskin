@@ -133,11 +133,11 @@ def manual_peak(save_path, cutoff, file_name=None):
     resave_auto(save_path=save_path)
 
 
-def manual_peak_auto(save_path, cutoff=None, sample=None, printer=None):
+def manual_peak_auto(save_path, cutoff, sample=None, printer=None):
     if sample is None:
         sample = input("enter sample name you are looking at plz:")
-    if cutoff is None:
-        cutoff = [0, 1]
+    # if cutoff is None:
+    #     cutoff = [0, 1]
     if printer is None:
         printer = sys.stderr
     if "/AutoTemp" not in save_path and r"\AutoTemp" not in save_path:
@@ -170,8 +170,10 @@ def manual_peak_auto(save_path, cutoff=None, sample=None, printer=None):
     # datacol3 = error in frequency
     # datacol4 = temperature
     # print(files)
+    print('press mouse on datapoint to select, or n to skip to next spectra. press x to quit.')
 
     skip = 0
+    maxy = 5
     for i, file in tqdm(enumerate(files), total=len(files), file=printer, ncols=42):
         # sample name from the file name
         # 2023_06_22_12_42_26_TP211_PSY2_4_81.12.txt
@@ -183,27 +185,42 @@ def manual_peak_auto(save_path, cutoff=None, sample=None, printer=None):
             continue
 
         xy = np.loadtxt(spectra_path + "/" + file)
-        xy = xy[int(len(xy[:, 0]) * cutoff[0]):int(len(xy[:, 0]) * cutoff[1]), ...]
+        # xy = xy[int(len(xy[:, 0]) * cutoff[0]):int(len(xy[:, 0]) * cutoff[1]), ...]
         fig, ax = plt.subplots()  # figsize=(16, 9)
         plt.get_current_fig_manager().full_screen_toggle()
         ax.plot(xy[:, 0], xy[:, 1], '-D', c='blue', mfc='red', mec='k', picker=10)
+        ax.set_xlim(cutoff)
+        actual = np.amax(np.where(xy[:, 0] <= cutoff[1], xy[:, 1], 0))
+        while maxy > 1.4 * actual:  # it only covers 60% of the screen, make that more. otherwise gdgd!
+            maxy = 0.95 * maxy
+        while maxy < 1.1 * actual:
+            maxy = 1.01 * maxy
+        ax.set_ylim([0, maxy])
         # markeredgecolor       mec     color
         # markeredgewidth       mew     float
         # markerfacecolor       mfc     color
         # markerfacecoloralt    mfcalt  color
         ax.set_title(f"picker {i - skip} of {len(files) - skip} (roughly)")
         fig.canvas.callbacks.connect('pick_event', on_pick)
+        fig.canvas.callbacks.connect('key_press_event', on_skip)
+        plt.tight_layout()
         plt.draw()
         with open("outputs/manual.txt", 'w') as m:
             m.writelines(f"{-1} {-1}")
         while np.loadtxt("outputs/manual.txt")[-1] == -1:
-            plt.waitforbuttonpress()
-
-        data[i, 0] = time_from_filename(file)
-        data[i, 1] = np.loadtxt("outputs/manual.txt")[0]
-        data[i, 2] = 10  # todo error in Hz
-        data[i, 3] = temp_from_filename(file)
-        # print(data[i, ...])
+            butt = plt.waitforbuttonpress()  # returns True for key, False for mouse, None if timeout before button press.
+            if not butt:  # if mouse click, file should be updated. read the file manual.txt
+                data[i, 0] = time_from_filename(file)
+                data[i, 1] = np.loadtxt("outputs/manual.txt")[0]  # take the first entry (the useful data)
+                data[i, 2] = 10  # todo error in Hz
+                data[i, 3] = temp_from_filename(file)
+                # print(data[i, ...])
+            elif np.loadtxt("outputs/manual.txt")[0] == -3123482:
+                print('quitting manual peaks. NOT SAVING data.')  # todo option to save data as well? should be easy.
+                plt.close(fig)
+                return
+            elif np.loadtxt("outputs/manual.txt")[0] == -912384:
+                print(f'skipping spectra number {i}')
         plt.close(fig)
 
     # data = data[np.argwhere(data[:, 2] != 0).flatten(), ...]
@@ -218,6 +235,15 @@ def manual_peak_auto(save_path, cutoff=None, sample=None, printer=None):
 def on_pick(event):
     with open("outputs/manual.txt", 'w') as m:
         m.writelines(f"{event.artist.get_xdata()[event.ind[0]]} {-2} {-2}")
+
+
+def on_skip(event):
+    if event.key == 'x':
+        with open("outputs/manual.txt", 'w') as m:
+            m.writelines(f"{-3123482} {-3} {-3}")
+    elif event.key == 'n':
+        with open("outputs/manual.txt", 'w') as m:
+            m.writelines(f"{-912384} {-4} {-4}")
 
 
 def aggregate():
