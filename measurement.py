@@ -183,6 +183,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None)
     ax_all.set_xlim(ax_lims([min_freq, max_freq]))
     ax_current.set_xlim([times[0], times[-1]])
     ax_current.set_ylim((-12, 12))
+    plt.tight_layout()
 
     with ni.Task() as task:
         task.ai_channels.add_ai_voltage_chan(devchan, min_val=-10.0, max_val=10.0)
