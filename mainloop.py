@@ -29,7 +29,7 @@ class Main:
         # set up variables that can be used in buttons
         # self.running = tk.BooleanVar(self.w, value=False)
         self.pause_text = tk.StringVar(self.w, value='Pause')
-        self.method = tk.StringVar(self.w, value='P')
+        self.method = tk.StringVar(self.w, value='B')  # set default to both: useful for manual peaks
         self.run_type = tk.StringVar(self.w, value='single')
         self.repeats = tk.IntVar(self.w, value=1)
         self.counter = tk.IntVar(self.w, value=-1)
