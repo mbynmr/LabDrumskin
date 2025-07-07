@@ -235,7 +235,7 @@ class AutoTemp:
         # np.savetxt(self.save_folder_path + "/" + fname, np.loadtxt(f"outputs/autotemp.txt"))
         resave(self.save_folder_path, name=fname)
 
-    def auto_both(self, bounds=None, repeats=300, runs=33, freqstep=0):
+    def auto_both(self, repeats=300, runs=33, freqstep=0):
         bounds = self.bounds
         repeats = int(repeats)
         if repeats < 2:
