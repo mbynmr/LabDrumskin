@@ -187,7 +187,6 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
 
         if method == 'B' and file.split('_')[6][0:2] == 'TP':
             prevfile = file
-            skip += 1
             continue
 
         xy = np.loadtxt(spectra_path + "/" + file)
@@ -218,11 +217,13 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
             xyp = np.loadtxt(spectra_path + "/" + prevfile)
             xyp[:, 1] = xyp[:, 1] * (0.95 * actual / np.amax(xyp[:, 1]))
             ax.plot(xyp[:, 0], xyp[:, 1], '-b')
+            ax.set_title(f"picker {i - skip} of {int((len(files) - skip) / 2)} (roughly)")
+        else:
+            ax.set_title(f"picker {i - skip} of {len(files) - skip} (roughly)")
         # markeredgecolor       mec     color
         # markeredgewidth       mew     float
         # markerfacecolor       mfc     color
         # markerfacecoloralt    mfcalt  color
-        ax.set_title(f"picker {i - skip} of {len(files) - skip} (roughly)")
         fig.canvas.callbacks.connect('pick_event', on_pick)
         fig.canvas.callbacks.connect('key_press_event', on_skip)
         plt.tight_layout()
