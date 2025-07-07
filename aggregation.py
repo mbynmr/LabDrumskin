@@ -212,9 +212,10 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
         while maxy < 1.1 * actual:
             maxy = 1.01 * maxy
         ax.set_ylim([0, maxy])
-        xyp = np.loadtxt(spectra_path + "/" + file)
-        xyp[:, 1] = xyp[:, 1] * (0.95 * actual / np.amax(xyp[:, 1]))
-        ax.plot(xyp[:, 0], xyp[:, 1], '-b')
+        if method == 'B':
+            xyp = np.loadtxt(spectra_path + "/" + file)
+            xyp[:, 1] = xyp[:, 1] * (0.95 * actual / np.amax(xyp[:, 1]))
+            ax.plot(xyp[:, 0], xyp[:, 1], '-b')
         # markeredgecolor       mec     color
         # markeredgewidth       mew     float
         # markerfacecolor       mfc     color
