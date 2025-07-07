@@ -190,7 +190,19 @@ def manual_peak_auto(save_path, cutoff, sample=None, printer=None):
         plt.get_current_fig_manager().full_screen_toggle()
         ax.plot(xy[:, 0], xy[:, 1], '-D', c='blue', mfc='red', mec='k', picker=10)
         ax.set_xlim(cutoff)
-        actual = np.amax(np.where(xy[:, 0] <= cutoff[1], xy[:, 1], 0))
+        continuing = True
+        while continuing:
+            actual = np.amax(np.where(xy[:, 0] <= cutoff[1], xy[:, 1], 0))
+            argg = np.argwhere(xy[:, 1] == actual)
+            if argg == 0:
+                continuing = False
+            try:
+                if xy[argg, 0] > 5 * xy[argg + 1, 1] or xy[argg, 1] > 5 * xy[argg - 1, 1]:
+                    xy[argg, 0] = 0
+                else:
+                    continuing = False
+            except IndexError:  # cba fixing this more than just a try except lol
+                continuing = False
         while maxy > 1.4 * actual:  # it only covers 60% of the screen, make that more. otherwise gdgd!
             maxy = 0.95 * maxy
         while maxy < 1.1 * actual:
