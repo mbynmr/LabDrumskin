@@ -133,7 +133,7 @@ def manual_peak(save_path, cutoff, file_name=None):
     resave_auto(save_path=save_path)
 
 
-def manual_peak_auto(save_path, cutoff, sample=None, printer=None):
+def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
     if sample is None:
         sample = input("enter sample name you are looking at plz:")
     # if cutoff is None:
@@ -172,6 +172,7 @@ def manual_peak_auto(save_path, cutoff, sample=None, printer=None):
     # print(files)
     print('press mouse on datapoint to select, or n to skip to next spectra. press x to quit.')
 
+    prevfile = None
     skip = 0
     maxy = 5
     for i, file in tqdm(enumerate(files), total=len(files), file=printer, ncols=42):
@@ -183,6 +184,9 @@ def manual_peak_auto(save_path, cutoff, sample=None, printer=None):
         if sample_name != sample:
             skip += 1
             continue
+
+        if method == 'B' and file.split('_')[6][0:2] == 'TP':
+            prevfile = file
 
         xy = np.loadtxt(spectra_path + "/" + file)
         # xy = xy[int(len(xy[:, 0]) * cutoff[0]):int(len(xy[:, 0]) * cutoff[1]), ...]
@@ -197,7 +201,7 @@ def manual_peak_auto(save_path, cutoff, sample=None, printer=None):
             if argg == 0:
                 continuing = False
             try:
-                if xy[argg, 0] > 5 * xy[argg + 1, 1] or xy[argg, 1] > 5 * xy[argg - 1, 1]:
+                if xy[argg, 0] > 3 * xy[argg + 1, 1] or xy[argg, 1] > 3 * xy[argg - 1, 1]:
                     xy[argg, 0] = 0
                 else:
                     continuing = False
@@ -208,6 +212,9 @@ def manual_peak_auto(save_path, cutoff, sample=None, printer=None):
         while maxy < 1.1 * actual:
             maxy = 1.01 * maxy
         ax.set_ylim([0, maxy])
+        xyp = np.loadtxt(spectra_path + "/" + file)
+        xyp[:, 1] = xyp[:, 1] * (0.95 * actual / np.amax(xyp[:, 1]))
+        ax.plot(xyp[:, 0], xyp[:, 1], '-b')
         # markeredgecolor       mec     color
         # markeredgewidth       mew     float
         # markerfacecolor       mfc     color
