@@ -187,7 +187,6 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
 
         if method == 'B' and file.split('_')[6][0:2] == 'TP':
             prevfile = file
-            continue
 
         xy = np.loadtxt(spectra_path + "/" + file)
         # xy = xy[int(len(xy[:, 0]) * cutoff[0]):int(len(xy[:, 0]) * cutoff[1]), ...]
@@ -196,13 +195,15 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
         ax.plot(xy[:, 0], xy[:, 1], '-D', c='blue', mfc='red', mec='k', picker=10)
         ax.set_xlim(cutoff)
         continuing = True
-        while continuing:
-            actual = np.amax(np.where(xy[:, 0] <= cutoff[1], xy[:, 1], 0))
-            argg = np.argwhere(xy[:, 1] == actual)
+        while continuing:  # todo this isn't working. something off, work on it tomorrow.
+            argg = np.argmax(np.where(xy[:, 0] <= cutoff[1], xy[:, 1], 0))
+            # argg = np.argwhere(xy[:, 1] == actual)
+            actual = xy[argg, 1]
             if argg == 0:
                 continuing = False
+                continue
             try:
-                if xy[argg, 0] > 3 * xy[argg + 1, 1] or xy[argg, 1] > 3 * xy[argg - 1, 1]:
+                if (xy[argg, 0] > 1.2 * xy[argg + 1, 1] or xy[argg, 1] > 1.2 * xy[argg - 1, 1]) and prevfile == file:
                     xy[argg, 0] = 0
                 else:
                     continuing = False
@@ -213,38 +214,39 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
         while maxy < 1.1 * actual:
             maxy = 1.01 * maxy
         ax.set_ylim([0, maxy])
-        if method == 'B':  # P & S both 'B' method: plot the line of both (first pulse then sweep).
-            xyp = np.loadtxt(spectra_path + "/" + prevfile)
-            xyp[:, 1] = xyp[:, 1] * (0.95 * actual / np.amax(xyp[:, 1]))
-            ax.plot(xyp[:, 0], xyp[:, 1], '-b')
+        ax.set_title(f"picker {i - skip} of {len(files) - skip} (roughly)")
+        if method == 'B':
             ax.set_title(f"picker {i - skip} of {int((len(files) - skip) / 2)} (roughly)")
-        else:
-            ax.set_title(f"picker {i - skip} of {len(files) - skip} (roughly)")
-        # markeredgecolor       mec     color
-        # markeredgewidth       mew     float
-        # markerfacecolor       mfc     color
-        # markerfacecoloralt    mfcalt  color
-        fig.canvas.callbacks.connect('pick_event', on_pick)
-        fig.canvas.callbacks.connect('key_press_event', on_skip)
-        plt.tight_layout()
-        plt.draw()
-        with open("outputs/manual.txt", 'w') as m:
-            m.writelines(f"{-1} {-1}")
-        while np.loadtxt("outputs/manual.txt")[-1] == -1:
-            butt = plt.waitforbuttonpress()  # returns True for key, False for mouse, None if timeout before button press.
-            if not butt:  # if mouse click, file should be updated. read the file manual.txt
-                data[i, 0] = time_from_filename(file)
-                data[i, 1] = np.loadtxt("outputs/manual.txt")[0]  # take the first entry (the useful data)
-                data[i, 2] = 10  # todo error in Hz
-                data[i, 3] = temp_from_filename(file)
-                # print(data[i, ...])
-            elif np.loadtxt("outputs/manual.txt")[0] == -3123482:
-                print('quitting manual peaks. NOT SAVING data.')  # todo option to save data as well? should be easy.
-                plt.close(fig)
-                return
-            elif np.loadtxt("outputs/manual.txt")[0] == -912384:
-                print(f'skipping spectra number {i}')
-        plt.close(fig)
+            if prevfile is not None:  # P & S both 'B' method: plot the line of both (pulse then sweep).
+                xyp = np.loadtxt(spectra_path + "/" + prevfile)
+                xyp[:, 1] = xyp[:, 1] * (0.95 * actual / np.amax(xyp[:, 1]))
+                ax.plot(xyp[:, 0], xyp[:, 1], '-b')
+        if (method == 'B' and file.split('_')[6][0:2] == 'TS') or method != 'B':
+            # markeredgecolor       mec     color
+            # markeredgewidth       mew     float
+            # markerfacecolor       mfc     color
+            # markerfacecoloralt    mfcalt  color
+            fig.canvas.callbacks.connect('pick_event', on_pick)
+            fig.canvas.callbacks.connect('key_press_event', on_skip)
+            plt.tight_layout()
+            plt.draw()
+            with open("outputs/manual.txt", 'w') as m:
+                m.writelines(f"{-1} {-1}")
+            while np.loadtxt("outputs/manual.txt")[-1] == -1:
+                butt = plt.waitforbuttonpress()  # returns True for key, False for mouse, None if timeout before button press.
+                if not butt:  # if mouse click, file should be updated. read the file manual.txt
+                    data[i, 0] = time_from_filename(file)
+                    data[i, 1] = np.loadtxt("outputs/manual.txt")[0]  # take the first entry (the useful data)
+                    data[i, 2] = 10  # todo error in Hz
+                    data[i, 3] = temp_from_filename(file)
+                    # print(data[i, ...])
+                elif np.loadtxt("outputs/manual.txt")[0] == -3123482:
+                    print('quitting manual peaks. NOT SAVING data.')  # todo option to save data as well? should be easy.
+                    plt.close(fig)
+                    return
+                elif np.loadtxt("outputs/manual.txt")[0] == -912384:
+                    print(f'skipping spectra number {i}')
+            plt.close(fig)
 
     # data = data[np.argwhere(data[:, 2] != 0).flatten(), ...]
     data = data[~np.all(data == 0, axis=1)]
