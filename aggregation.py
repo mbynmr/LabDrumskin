@@ -172,7 +172,7 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
     # print(files)
     print('press mouse on datapoint to select, or n to skip to next spectra. press x to quit.')
 
-    prevfile = None
+    prevfile = None  # for 'B' both S & P method
     skip = 0
     maxy = 5
     for i, file in tqdm(enumerate(files), total=len(files), file=printer, ncols=42):
