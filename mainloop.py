@@ -102,8 +102,9 @@ class Main:
         tk.Button(self.w, text='Calibrate', command=self.calibrate).place(relx=0.68, rely=0.25)
         # method options
         tk.Radiobutton(self.w, text='Sweep', variable=self.method, value='S').place(relx=0.25, rely=0.05)
-        tk.Radiobutton(self.w, text='Adapt', variable=self.method, value='A').place(relx=0.25, rely=0.125)
-        tk.Radiobutton(self.w, text='Pulse', variable=self.method, value='P').place(relx=0.25, rely=0.2)
+        tk.Radiobutton(self.w, text='Adapt', variable=self.method, value='A').place(relx=0.25, rely=0.1)
+        tk.Radiobutton(self.w, text='Pulse', variable=self.method, value='P').place(relx=0.25, rely=0.15)
+        tk.Radiobutton(self.w, text='P & S', variable=self.method, value='B').place(relx=0.25, rely=0.2)
         tk.Label(self.w, text="Actuation Style").place(relx=0.225, rely=0.01)
 
         # method options for multiple/single
@@ -197,6 +198,8 @@ class Main:
                 #                    temp_repeats=self.repeats.get(), temp_start=self.tempL.get(),
                 #                    temp_stop=self.tempU.get(), GUI=self)
                 at.auto_sweep(freqstep=self.freqstep.get(), repeats=self.repeats.get())
+            case 'B':
+                at.auto_both(repeats=self.repeats.get(), runs=self.runs.get(), freqstep=self.freqstep.get())
         self.w.after(600, notify_finish)  # extra notify for autotemp as I may b distracted!
         at.close()
 
