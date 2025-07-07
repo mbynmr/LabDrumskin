@@ -187,6 +187,8 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
 
         if method == 'B' and file.split('_')[6][0:2] == 'TP':
             prevfile = file
+            skip += 1
+            continue
 
         xy = np.loadtxt(spectra_path + "/" + file)
         # xy = xy[int(len(xy[:, 0]) * cutoff[0]):int(len(xy[:, 0]) * cutoff[1]), ...]
