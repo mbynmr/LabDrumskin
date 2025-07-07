@@ -212,8 +212,8 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
         while maxy < 1.1 * actual:
             maxy = 1.01 * maxy
         ax.set_ylim([0, maxy])
-        if method == 'B':
-            xyp = np.loadtxt(spectra_path + "/" + file)
+        if method == 'B':  # P & S both 'B' method: plot the line of both (first pulse then sweep).
+            xyp = np.loadtxt(spectra_path + "/" + prevfile)
             xyp[:, 1] = xyp[:, 1] * (0.95 * actual / np.amax(xyp[:, 1]))
             ax.plot(xyp[:, 0], xyp[:, 1], '-b')
         # markeredgecolor       mec     color
