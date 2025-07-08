@@ -190,7 +190,7 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
             continue
 
         xy = np.loadtxt(spectra_path + "/" + file)
-        xy = remove_max_outlier(xy, cutoff, 2.5, 3)
+        # xy = remove_max_outlier(xy, cutoff, 2.5, 3)  # todo not working here. idk why
         # xy = xy[int(len(xy[:, 0]) * cutoff[0]):int(len(xy[:, 0]) * cutoff[1]), ...]
         fig, ax = plt.subplots()  # figsize=(16, 9)
         plt.get_current_fig_manager().full_screen_toggle()
@@ -247,21 +247,26 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
 
 
 def remove_max_outlier(xy, cutoff, ratio, width):
+    xy = np.where(xy[:, 0] < cutoff[1], xy[:, 1], 0)
     # sets the maximum value point to 0 if it is outside the bounds set by ratio&width, idk, numbers
     width = int(width)
     continuing = True
+    gauss = True
     while continuing:
-        argg = np.argmax(np.where(xy[:, 0] <= cutoff[1], xy[:, 1], 0))
+        argg = np.argmax(xy)
         if argg <= -1 + width:  # or argg >= np.where(xy[:, 0] <= cutoff[1]) - width:  # todo find edges...
             xy[argg, 1] = 0  # cursed fix. "if too close to the edge"
             continue
         val = xy[argg, 1]
-        for i in range(2 * width + 1):
-            if val > ratio * xy[argg + i - width, 1]:
-                xy[argg, 1] = 0  # remove an outlier by setting to zero
-                # todo make this about if a point is above the local average by a certain ammount.
+        if gauss:
+            avgg = np.average([1, 1.5, 2], weights=[0, 0.5, 1])  # todo do this instead
+        else:
+            for i in range(2 * width + 1):
+                if val > ratio * xy[argg + i - width, 1]:
+                    xy[argg, 1] = 0  # remove an outlier by setting to zero
         if xy[argg, 1] != 0:  # if check didn't set to 0, we happy.
-            return xy
+            break
+    return xy
 
 
 def on_pick(event):
