@@ -187,28 +187,16 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
 
         if method == 'B' and file.split('_')[6][0:2] == 'TP':
             prevfile = file
+            continue
 
         xy = np.loadtxt(spectra_path + "/" + file)
+        xy = remove_max_outlier(xy, cutoff, 2.5, 3)
         # xy = xy[int(len(xy[:, 0]) * cutoff[0]):int(len(xy[:, 0]) * cutoff[1]), ...]
         fig, ax = plt.subplots()  # figsize=(16, 9)
         plt.get_current_fig_manager().full_screen_toggle()
         ax.plot(xy[:, 0], xy[:, 1], '-D', c='blue', mfc='red', mec='k', picker=10)
         ax.set_xlim(cutoff)
-        continuing = True
-        while continuing:  # todo this isn't working. something off, work on it tomorrow.
-            argg = np.argmax(np.where(xy[:, 0] <= cutoff[1], xy[:, 1], 0))
-            # argg = np.argwhere(xy[:, 1] == actual)
-            actual = xy[argg, 1]
-            if argg == 0:
-                continuing = False
-                continue
-            try:
-                if (xy[argg, 0] > 1.2 * xy[argg + 1, 1] or xy[argg, 1] > 1.2 * xy[argg - 1, 1]) and prevfile == file:
-                    xy[argg, 0] = 0
-                else:
-                    continuing = False
-            except IndexError:  # cba fixing this more than just a try except lol
-                continuing = False
+        actual = xy[np.argmax(np.where(xy[:, 0] <= cutoff[1], xy[:, 1], 0)), 1]
         while maxy > 1.4 * actual:  # it only covers 60% of the screen, make that more. otherwise gdgd!
             maxy = 0.95 * maxy
         while maxy < 1.1 * actual:
@@ -219,8 +207,9 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
             ax.set_title(f"picker {i - skip} of {int((len(files) - skip) / 2)} (roughly)")
             if prevfile is not None:  # P & S both 'B' method: plot the line of both (pulse then sweep).
                 xyp = np.loadtxt(spectra_path + "/" + prevfile)
+                xyp = remove_max_outlier(xyp, cutoff, 1.1, 5)
                 xyp[:, 1] = xyp[:, 1] * (0.95 * actual / np.amax(xyp[:, 1]))
-                ax.plot(xyp[:, 0], xyp[:, 1], '-b')
+                ax.plot(xyp[:, 0], xyp[:, 1], '-y')
         if (method == 'B' and file.split('_')[6][0:2] == 'TS') or method != 'B':
             # markeredgecolor       mec     color
             # markeredgewidth       mew     float
@@ -241,7 +230,7 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
                     data[i, 3] = temp_from_filename(file)
                     # print(data[i, ...])
                 elif np.loadtxt("outputs/manual.txt")[0] == -3123482:
-                    print('quitting manual peaks. NOT SAVING data.')  # todo option to save data as well? should be easy.
+                    print('quitting manual peaks. NOT SAVING data.')  # todo option to save data as well? should be easy
                     plt.close(fig)
                     return
                 elif np.loadtxt("outputs/manual.txt")[0] == -912384:
@@ -255,6 +244,24 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
     np.savetxt("outputs/manual.txt", data, fmt='%.6g')
     print("\ndone!")
     resave_auto(save_path=save_path, sample_name=sample, method=file.split("_T")[1][0])
+
+
+def remove_max_outlier(xy, cutoff, ratio, width):
+    # sets the maximum value point to 0 if it is outside the bounds set by ratio&width, idk, numbers
+    width = int(width)
+    continuing = True
+    while continuing:
+        argg = np.argmax(np.where(xy[:, 0] <= cutoff[1], xy[:, 1], 0))
+        if argg <= -1 + width:  # or argg >= np.where(xy[:, 0] <= cutoff[1]) - width:  # todo find edges...
+            xy[argg, 1] = 0  # cursed fix. "if too close to the edge"
+            continue
+        val = xy[argg, 1]
+        for i in range(2 * width + 1):
+            if val > ratio * xy[argg + i - width, 1]:
+                xy[argg, 1] = 0  # remove an outlier by setting to zero
+                # todo make this about if a point is above the local average by a certain ammount.
+        if xy[argg, 1] != 0:  # if check didn't set to 0, we happy.
+            return xy
 
 
 def on_pick(event):
