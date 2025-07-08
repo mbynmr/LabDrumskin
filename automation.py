@@ -197,7 +197,6 @@ class AutoTemp:
         max_freq = self.M.rate / 2  # = (num / 2) / t  # aka Nyquist frequency
         # self.num_freqs = (self.max_freq - 0) / self.min_freq
         freqs = np.linspace(start=min_freq, stop=max_freq, num=int(num / 2), endpoint=True)
-        # data_list = np.ones([len(freqs), repeats]) * np.nan
 
         print("starting autotemp...")
         self.M.task_close()
@@ -207,7 +206,7 @@ class AutoTemp:
 
         overall_start = time.time()
         for i in range(repeats):
-            runs = int(np.loadtxt("outputs/AutoTemp settings.txt")[2])
+            runs = int(np.loadtxt("outputs/AutoTemp settings.txt", delimiter=',')[2])
             print(f"\r {i} of {repeats}", end='')
             temp = np.nanmean(temp_get(self.M.task_read()[1]))
             self.M.task_close()
@@ -218,7 +217,6 @@ class AutoTemp:
             temp = (float(temp) + float(np.nanmean(temp_get(self.M.task_read()[1])))) / 2  # temp before + after / 2
 
             # data/file management
-            # data_list[:, i] = data
             arr = np.zeros([len(data), 2])
             arr[:, 0] = freqs
             arr[:, 1] = data ** 2
@@ -248,7 +246,6 @@ class AutoTemp:
             freqstep = round_sig_figs(freqstep, 2, method='d')
         freqs = np.sort(np.linspace(start=bounds[0], stop=bounds[-1],
                                     num=int(1 + abs(bounds[-1] - bounds[0]) / freqstep)))
-        data_list = np.ones([len(freqs), repeats]) * np.nan
         sleep_time = 0.135
         with open("outputs/AutoTemp settings.txt", 'w') as file:  # settings document init
             file.write(f'{bounds[0]},{bounds[1]},{freqstep},{runs}')
@@ -260,7 +257,6 @@ class AutoTemp:
         max_freq = self.M.rate / 2  # = (num / 2) / t  # aka Nyquist frequency
         # self.num_freqs = (self.max_freq - 0) / self.min_freq
         freqsp = np.linspace(start=min_freq, stop=max_freq, num=int(num / 2), endpoint=True)
-        # data_list = np.ones([len(freqs), repeats]) * np.nan
 
         print("starting autotemp...")
         self.M.task_close()
@@ -270,10 +266,12 @@ class AutoTemp:
 
         overall_start = time.time()
         for i in range(repeats):
-            settings = np.loadtxt("outputs/AutoTemp settings.txt")
+            settings = np.loadtxt("outputs/AutoTemp settings.txt", delimiter=',')
             bounds[0] = int(settings[0])
             bounds[1] = int(settings[1])
-            freqstep = int(freqstep[2])
+            freqstep = int(settings[2])
+            freqs = np.sort(np.linspace(start=bounds[0], stop=bounds[-1],
+                                        num=int(1 + abs(bounds[-1] - bounds[0]) / freqstep)))
             runs = int(settings[3])
             print(f"\r {i}p of {repeats}", end='')
             # pulse
@@ -295,7 +293,6 @@ class AutoTemp:
             print(f"\r {i}s of {repeats}", end='')
             # sweep
             data, temp = self.M.measure_sweep(freqs)
-            data_list[:, i] = data
             # file management
             arr = np.zeros([len(data), 3])
             arr[:, 0] = freqs
@@ -330,15 +327,13 @@ class AutoTemp:
         print("starting autotemp...")
 
         required_temps, up = self.required_temps_get(**kwargs)
-        data_list = np.ones([len(freqs), len(required_temps)]) * np.nan
         temps = np.ones([len(required_temps)]) * np.nan
         overall_start = time.time()
         with open("outputs/autotemp.txt", "w") as autotemp:  # reset the file
             pass
 
         for i, temp_should_be in enumerate(required_temps):
-            settings = np.loadtxt("outputs/AutoTemp settings.txt")
-            runs = int(settings[2])
+            runs = int(np.loadtxt("outputs/AutoTemp settings.txt", delimiter=',')[2])
             print(f"\r {i} of {len(required_temps)}", end='')
             temp = self.temp_move_on(temp_should_be, up)
 
@@ -350,7 +345,6 @@ class AutoTemp:
             temps[i] = (float(temp) + float(np.nanmean(temp_get(self.M.task_read()[1])))) / 2  # temp before + after / 2
 
             # data/file management
-            data_list[:, i] = data
             arr = np.zeros([len(data), 2])
             arr[:, 0] = freqs
             arr[:, 1] = data
@@ -378,20 +372,20 @@ class AutoTemp:
 
         freqs = np.sort(np.linspace(start=bounds[0], stop=bounds[-1],
                                     num=int(1 + abs(bounds[-1] - bounds[0]) / freqstep)))
-        data_list = np.ones([len(freqs), repeats]) * np.nan
 
         overall_start = time.time()
         with open("outputs/autotemp.txt", "w") as autotemp:  # reset the file
             pass
         for i in range(repeats):
-            settings = np.loadtxt("outputs/AutoTemp settings.txt")
+            settings = np.loadtxt("outputs/AutoTemp settings.txt", delimiter=',')
             bounds[0] = int(settings[0])
             bounds[1] = int(settings[1])
             freqstep = int(freqstep[2])
+            freqs = np.sort(np.linspace(start=bounds[0], stop=bounds[-1],
+                                        num=int(1 + abs(bounds[-1] - bounds[0]) / freqstep)))
             print(f"\r {i} of {repeats}", end='')
 
             data, temp = self.M.measure_sweep(freqs)
-            data_list[:, i] = data
 
             # file management
             arr = np.zeros([len(data), 3])
@@ -414,7 +408,6 @@ class AutoTemp:
         required_temps, up = self.required_temps_get(**kwargs)
         freqs = np.sort(np.linspace(start=bounds[0], stop=bounds[-1],
                                     num=int(1 + abs(bounds[-1] - bounds[0]) / freqstep)))
-        data_list = np.ones([len(freqs), len(required_temps)]) * np.nan
         # temps = np.ones([len(required_temps)]) * np.nan
         with open("outputs/AutoTemp settings.txt", 'w') as file:  # settings document init
             file.write(f'{bounds[0]},{bounds[1]},{freqstep}')
@@ -423,7 +416,7 @@ class AutoTemp:
         with open("outputs/autotemp.txt", "w") as autotemp:  # reset the file
             pass
         for i, temp_should_be in enumerate(required_temps):
-            settings = np.loadtxt("outputs/AutoTemp settings.txt")
+            settings = np.loadtxt("outputs/AutoTemp settings.txt", delimiter=',')
             bounds[0] = int(settings[0])
             bounds[1] = int(settings[1])
             freqstep = int(freqstep[2])
@@ -431,7 +424,6 @@ class AutoTemp:
             _ = self.temp_move_on(temp_should_be, up, GUI)
 
             data, temp = self.M.measure_sweep(freqs)
-            data_list[:, i] = data
 
             # file management
             arr = np.zeros([len(data), 3])
@@ -462,7 +454,7 @@ class AutoTemp:
         with open("outputs/autotemp.txt", "w") as autotemp:  # reset the file
             pass
         for i, temp_should_be in enumerate(required_temps):
-            settings = np.loadtxt("outputs/AutoTemp settings.txt")
+            settings = np.loadtxt("outputs/AutoTemp settings.txt", delimiter=',')
             bounds[0] = int(settings[0])
             bounds[1] = int(settings[1])
             print(f"\r {i} of {len(required_temps)}", end='')
