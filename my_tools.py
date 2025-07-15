@@ -166,6 +166,9 @@ def temp_from_filename(file):
         temp_corr = 1  # convert from temp_get_nearly_new to temp_get
     else:  # after 10/03/2025 @ 14:00 exactly is the current temp_get
         temp_corr = temp_in_file
+    # 2025_07_09_15_36_31
+    # 09/07/2025 @09:00 new battery in the CJC means all temps are appearing lower than they used to.
+    # i wanna stay consistent SO imma test this one
     return temp_corr
 
 
