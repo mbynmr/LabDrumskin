@@ -303,7 +303,7 @@ class AutoTemp:
                           save_path=self.save_folder_path + r"\Spectra", temperature=temp_to_str(np.nanmean(temp)),
                           sample=self.sample_name)
 
-        finishstuff(overall_start, self.save_folder_path, self.sample_name, method="B")
+        finishstuff(overall_start, self.save_folder_path, self.sample_name, method="B")  # todo positional args?
         fname = '_'.join([str(e).zfill(2) for e in time.localtime()[0:5]]) + f"_TP_{self.sample_name}.txt"
         # np.savetxt(self.save_folder_path + "/" + fname, np.loadtxt(f"outputs/autotemp.txt"))
         resave(self.save_folder_path, name=fname)

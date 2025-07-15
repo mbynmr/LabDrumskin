@@ -5,6 +5,7 @@ from tkinter import filedialog
 import os
 from tqdm import tqdm
 import sys
+from scipy.ndimage import gaussian_filter
 
 from my_tools import resave_auto, time_from_filename, temp_from_filename
 from fitting import fit_agg, fit
@@ -190,7 +191,7 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
             continue
 
         xy = np.loadtxt(spectra_path + "/" + file)
-        # xy = remove_max_outlier(xy, cutoff, 2.5, 3)  # todo not working here. idk why
+        xy = remove_max_outlier(xy, cutoff, 1.5, 3)
         # xy = xy[int(len(xy[:, 0]) * cutoff[0]):int(len(xy[:, 0]) * cutoff[1]), ...]
         fig, ax = plt.subplots()  # figsize=(16, 9)
         plt.get_current_fig_manager().full_screen_toggle()
@@ -246,20 +247,37 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
     resave_auto(save_path=save_path, sample_name=sample, method=file.split("_T")[1][0])
 
 
-def remove_max_outlier(xy, cutoff, ratio, width):
-    xy = np.where(xy[:, 0] < cutoff[1], xy[:, 1], 0)
+def remove_max_outlier(xy, cutoff, ratio=1.5, width=3):
     # sets the maximum value point to 0 if it is outside the bounds set by ratio&width, idk, numbers
+    # originalxy = xy
+    y = np.where(xy[:, 0] < cutoff[1], xy[:, 1], 0)
+    while 1:
+        argmax = np.argmax(y)
+        ygauss = gaussian_filter(y, sigma=(width / 2), mode='nearest')
+        if y[argmax] > ratio * ygauss[argmax]:
+            y[argmax] = 0
+        else:
+            break
+    xy[:, 1] = y
+    return xy
+
+
+def remove_max_outlier_old(xy, cutoff, ratio, width):
+    # didn't work but:
+    # sets the maximum value point to 0 if it is outside the bounds set by ratio&width, idk, numbers
+    xy[:, 1] = np.where(xy[:, 0] < cutoff[1], xy[:, 1], 0)
     width = int(width)
     continuing = True
-    gauss = True
-    while continuing:
-        argg = np.argmax(xy)
-        if argg <= -1 + width:  # or argg >= np.where(xy[:, 0] <= cutoff[1]) - width:  # todo find edges...
+    gauss = False
+    while continuing:  # to do the problem is the loop never breaks uhh
+        argg = np.argmax(xy[:, 1])
+        if argg <= -1 + width:  # or argg >= np.where(xy[:, 0] <= cutoff[1]) - width:  # to do find edges...
             xy[argg, 1] = 0  # cursed fix. "if too close to the edge"
             continue
         val = xy[argg, 1]
         if gauss:
-            avgg = np.average([1, 1.5, 2], weights=[0, 0.5, 1])  # todo do this instead
+            avgg = np.average([1, 1.5, 2], weights=[0, 0.5, 1])  # to do do this instead
+            xy[argg, 1] = 0  # to do remove
         else:
             for i in range(2 * width + 1):
                 if val > ratio * xy[argg + i - width, 1]:
