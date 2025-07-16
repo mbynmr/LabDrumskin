@@ -171,7 +171,7 @@ def temp_from_filename(file):
         # to undo this, we reverse temp_get_corr. then we apply temp_get_nb.
         undone_voltage = (temp_in_file - 40.3593629746) / (-31.098754907792)
         # (T - c) / m = V
-        temp_corr = temp_get(undone_voltage)
+        temp_corr = temp_get_nb(undone_voltage)
     else:  # after 16/07/2025 @13:00 exactly is the current temp_get
         temp_corr = temp_in_file
     return temp_corr
