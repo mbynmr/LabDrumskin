@@ -161,18 +161,37 @@ def temp_from_filename(file):
     if date < (((5 * 12) + 3) * 31 + 6) * 24:  # before 06/03/2025 is temp_get_not_new
         temp_corr = 1  # convert from temp_get_not_new to temp_get
         # return (((100 - 41.294) / (-1.785 - 0)) * np.asarray(voltage)) + 41.294
-        temp_corr = temp_get((temp_in_file - 41.294) / ((100 - 41.294) / (-1.785 - 0)))
+        temp_corr = temp_get_corr((temp_in_file - 41.294) / ((100 - 41.294) / (-1.785 - 0)))
     elif date < (((5 * 12) + 3) * 31 + 10) * 24 + 14:  # before 10/03/2025 @ 14:00 exactly is temp_get_nearly_new
-        temp_corr = 1  # convert from temp_get_nearly_new to temp_get
-    else:  # after 10/03/2025 @ 14:00 exactly is the current temp_get
+        temp_corr = 1  # convert from temp_get_nearly_new to temp_get  # todo ?? when is this and what is thehhhuuuu
+    elif date < (((5 * 12) + 7) * 31 + 9) * 24 + 9:  # before 09/07/2025 @09:00 is temp_get_corr, correctly labelled.
         temp_corr = temp_in_file
-    # 2025_07_09_15_36_31
-    # 09/07/2025 @09:00 new battery in the CJC means all temps are appearing lower than they used to.
-    # i wanna stay consistent SO imma test this one
+    elif date < (((5 * 12) + 7) * 31 + 16) * 24 + 13:  # before 16/07/2025 @13:00 is mix of old temp_get & new battery
+        # voltage has temp_get_corr applied but needed temp_get_nb
+        # to undo this, we reverse temp_get_corr. then we apply temp_get_nb.
+        undone_voltage = (temp_in_file - 40.3593629746) / (-31.098754907792)
+        # (T - c) / m = V
+        temp_corr = temp_get(undone_voltage)
+    else:  # after 16/07/2025 @13:00 exactly is the current temp_get
+        temp_corr = temp_in_file
     return temp_corr
 
 
 def temp_get(voltage):  # processes an array of voltages to return the corresponding array of temps (can be len = 1)
+    return temp_get_nb(voltage)
+
+
+def temp_get_nb(voltage):
+    return 50.12788 - 31.96931 * np.asarray(voltage)
+    # 09/07/2025 @09:00 I put a new battery in the CJC which made all temps appear lower than they used to (+should be).
+    # new 0C: 1.568V, new 100C: -1.560V
+    # T = mV + c
+    # m = 31.969309462915601023017902813299
+    # c = 50.127877237851662404092071611253
+    # 16/07/2025 @13:00 this was implemented into the code. files from this time onward are happy
+
+
+def temp_get_corr(voltage):
     return 40.3593629746 - 31.098754907792 * np.asarray(voltage)
     # comes from fit to what the temperature controller said at a series of temperatures
     # the temperature controller being accurate we can't trust 100%. in boiling water it got 100.5 consistently
