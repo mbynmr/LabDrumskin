@@ -205,7 +205,7 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
         ax.set_ylim([0, maxy])
         ax.set_title(f"picker {i - skip} of {len(files) - skip} (roughly)")
         if method == 'B':
-            ax.set_title(f"picker {i - skip} of {int((len(files) - skip) / 2)} (rough)."
+            ax.set_title(f"picker {int((i - skip) / 2)} of {int((len(files) - skip) / 2)} (rough)."
                          f" temp: {temp_from_filename(file)}")
             if prevfile is not None:  # P & S both 'B' method: plot the line of both (pulse then sweep).
                 xyp = np.loadtxt(spectra_path + "/" + prevfile)
