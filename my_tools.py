@@ -174,6 +174,7 @@ def temp_from_filename(file):
         temp_corr = temp_get_nb(undone_voltage)
     else:  # after 16/07/2025 @13:00 exactly is the current temp_get
         temp_corr = temp_in_file
+    # todo 21/08/2025 data since the battery got replaced has been drifting(?) too high. change needed.
     return temp_corr
 
 

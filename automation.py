@@ -34,7 +34,7 @@ def fitstuff(data, freqs, bounds, temp, overall_start, freqstep=5):
         autotemp.write(f"{time.time() - overall_start:.6g}  {value[1]:.6g} {error[1]:.6g} {temp:.6g}\n")
 
 
-def finishstuff(overall_start, freqstep, save_folder_path, sample_name, method):
+def finishstuff(overall_start, freqstep, save_folder_path=None, sample_name=None, method=None):
     total_t = time.time() - overall_start
     print(f"\rThat took {total_t:.6g} seconds")
     print(f"Or {total_t // (60 * 60)}h {(total_t % (60 * 60)) // 60}m {total_t % 60:.4g}s")
@@ -231,7 +231,7 @@ class AutoTemp:
             if sleep > 0:
                 time.sleep(sleep)
 
-        finishstuff(overall_start, self.save_folder_path, self.sample_name, method="P")
+        finishstuff(overall_start, self.save_folder_path, sample_name=self.sample_name, method="P")
         fname = '_'.join([str(e).zfill(2) for e in time.localtime()[0:5]]) + f"_TP_{self.sample_name}.txt"
         # np.savetxt(self.save_folder_path + "/" + fname, np.loadtxt(f"outputs/autotemp.txt"))
         resave(self.save_folder_path, name=fname)
@@ -303,7 +303,7 @@ class AutoTemp:
                           save_path=self.save_folder_path + r"\Spectra", temperature=temp_to_str(np.nanmean(temp)),
                           sample=self.sample_name)
 
-        finishstuff(overall_start, self.save_folder_path, self.sample_name, method="B")  # todo positional args?
+        finishstuff(overall_start, self.save_folder_path, sample_name=self.sample_name, method="B")  # todo positional args?
         fname = '_'.join([str(e).zfill(2) for e in time.localtime()[0:5]]) + f"_TP_{self.sample_name}.txt"
         # np.savetxt(self.save_folder_path + "/" + fname, np.loadtxt(f"outputs/autotemp.txt"))
         resave(self.save_folder_path, name=fname)
@@ -355,7 +355,7 @@ class AutoTemp:
 
             # fitstuff(data, freqs, bounds, temp, overall_start)
 
-        finishstuff(overall_start, self.save_folder_path, self.sample_name, method="P")
+        finishstuff(overall_start, self.save_folder_path, sample_name=self.sample_name, method="P")
 
     def auto_sweep(self, freqstep=0, repeats=None):
         bounds = self.bounds
@@ -399,7 +399,7 @@ class AutoTemp:
 
             # fitstuff(data, freqs, bounds, temp, overall_start, freqstep)
 
-        finishstuff(overall_start, freqstep, self.save_folder_path, self.sample_name, method="S")
+        finishstuff(overall_start, freqstep, self.save_folder_path, sample_name=self.sample_name, method="S")
 
     def auto_temp_sweep(self, freqstep=5, GUI=None, **kwargs):
         print("starting autotemp...")
@@ -437,7 +437,7 @@ class AutoTemp:
 
             # fitstuff(data, freqs, bounds, temp, overall_start, freqstep)
 
-        finishstuff(overall_start, self.save_folder_path, self.sample_name, method="S")
+        finishstuff(overall_start, self.save_folder_path, sample_name=self.sample_name, method="S")
 
     def auto_temp_adaptive(self, vpp=5, tolerance=5, start_guess=1e3, start_delta=1e3, **kwargs):
         bounds = self.bounds
@@ -484,7 +484,7 @@ class AutoTemp:
 
             with open("outputs/autotemp.txt", "a") as autotemp:
                 autotemp.write(f"{time.time() - overall_start:.6g} {res.x[0]:.6g} {tolerance / 2:.6g} {temp:.6g}\n")
-        finishstuff(overall_start, self.save_folder_path, self.sample_name, method="A")
+        finishstuff(overall_start, self.save_folder_path, sample_name=self.sample_name, method="A")
 
     def close(self):
         self.M.close()
