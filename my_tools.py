@@ -172,18 +172,30 @@ def temp_from_filename(file):
         undone_voltage = (temp_in_file - 40.3593629746) / (-31.098754907792)
         # (T - c) / m = V
         temp_corr = temp_get_nb(undone_voltage)
-    else:  # after 16/07/2025 @13:00 exactly is the current temp_get
+    elif date < (((5 * 12) + 9) * 31 + 15) * 24 + 14:  # before 15/09/2025 @14:00 is new battery
+        temp_corr = temp_get_nb(temp_in_file)
+    else:  # after 15/09/2025 @14:00 exactly is the current temp_get
         temp_corr = temp_in_file
     # todo 21/08/2025 data since the battery got replaced has been drifting(?) too high. change needed.
+    # 15/09/2025 this is solved yesyes. thats my plan for today.
     return temp_corr
 
 
 def temp_get(voltage):  # processes an array of voltages to return the corresponding array of temps (can be len = 1)
-    return temp_get_nb(voltage)
+    return temp_get_nb_recal(voltage)
+
+
+def temp_get_nb_recal(voltage):
+    return 50.12788 - 31.96931 * np.asarray(voltage)
+    # new 0C: 1.38V, new 100C: -1.798V
+    # T = mV + c
+    # m = -31.46633103
+    # c = 56.57646318
+    # 15/09/2025 @14:00 this was implemented into the code. files from this time onward are happy
 
 
 def temp_get_nb(voltage):
-    return 50.12788 - 31.96931 * np.asarray(voltage)
+    return 56.57646318 - 31.46633103 * np.asarray(voltage)
     # 09/07/2025 @09:00 I put a new battery in the CJC which made all temps appear lower than they used to (+should be).
     # new 0C: 1.568V, new 100C: -1.560V
     # T = mV + c
