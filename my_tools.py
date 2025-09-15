@@ -172,12 +172,11 @@ def temp_from_filename(file):
         undone_voltage = (temp_in_file - 40.3593629746) / (-31.098754907792)
         # (T - c) / m = V
         temp_corr = temp_get_nb(undone_voltage)
-    elif date < (((5 * 12) + 9) * 31 + 15) * 24 + 14:  # before 15/09/2025 @14:00 is new battery
-        temp_corr = temp_get_nb(temp_in_file)
-    else:  # after 15/09/2025 @14:00 exactly is the current temp_get
+    elif date < (((5 * 12) + 9) * 31 + 15) * 24 + 14:  # before 15/09/2025 @14:00 is new battery but drifting? idk. flat
+        undone_voltage = (temp_in_file - 56.57646318) / (- 31.46633103)
+        temp_corr = temp_get_nb_recal(undone_voltage)
+    else:  # after 15/09/2025 @14:00 is the current temp_get
         temp_corr = temp_in_file
-    # todo 21/08/2025 data since the battery got replaced has been drifting(?) too high. change needed.
-    # 15/09/2025 this is solved yesyes. thats my plan for today.
     return temp_corr
 
 
