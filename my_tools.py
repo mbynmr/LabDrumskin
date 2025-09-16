@@ -172,10 +172,10 @@ def temp_from_filename(file):
         undone_voltage = (temp_in_file - 40.3593629746) / (-31.098754907792)
         # (T - c) / m = V
         temp_corr = temp_get_nb(undone_voltage)
-    elif date < (((5 * 12) + 9) * 31 + 15) * 24 + 14:  # before 15/09/2025 @14:00 is new battery but drifting? idk. flat
+    elif date < (((5 * 12) + 9) * 31 + 16) * 24 + 14:  # before 16/09/2025 @14:00 is new battery but drifting? idk. flat
         undone_voltage = (temp_in_file - 56.57646318) / (- 31.46633103)
         temp_corr = temp_get_nb_recal(undone_voltage)
-    else:  # after 15/09/2025 @14:00 is the current temp_get
+    else:  # after 16/09/2025 @14:00 is the current temp_get
         temp_corr = temp_in_file
     return temp_corr
 
@@ -185,11 +185,17 @@ def temp_get(voltage):  # processes an array of voltages to return the correspon
 
 
 def temp_get_nb_recal(voltage):
+    V0 = 1.267
+    V100 = -1.930
+    return (100 - 0) / (V100 - V0) * (-V0 + np.asarray(voltage))
+    # 16/09/2025 @14:00 this was implemented into the code. files from this time onward are happy
+    # m = (100 - 0) / (V100 - V0)
+    # c = -m * V0
+    # return c + m * np.asarray(voltage)
+
+
+def temp_get_nb_recal_old(voltage):
     return 50.12788 - 31.96931 * np.asarray(voltage)
-    # new 0C: 1.38V, new 100C: -1.798V
-    # T = mV + c
-    # m = -31.46633103
-    # c = 56.57646318
     # 15/09/2025 @14:00 this was implemented into the code. files from this time onward are happy
 
 
