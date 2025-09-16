@@ -1,5 +1,6 @@
 import pyvisa
 import nidaqmx as ni
+from nidaqmx.constants import TerminalConfiguration
 import numpy as np
 import matplotlib.pyplot as plt
 import time
@@ -13,12 +14,15 @@ def set_up_daq(mode, c1, c2=None, rate=int(20e3), t=0.1):
     match mode:
         case 'dual':
             num = int(np.ceil(int(rate / 2) * t))  # number of samples to measure
-            task.ai_channels.add_ai_voltage_chan(c1, min_val=-10.0, max_val=10.0)
+            task.ai_channels.add_ai_voltage_chan(c1, min_val=-10.0, max_val=10.0,
+                                                 terminal_config=TerminalConfiguration.DIFF)  # terminal_config=10106
             task.timing.cfg_samp_clk_timing(rate=int(rate / 2), samps_per_chan=num)
-            task.ai_channels.add_ai_voltage_chan(c2, min_val=-10.0, max_val=10.0)
+            task.ai_channels.add_ai_voltage_chan(c2, min_val=-10.0, max_val=10.0,
+                                                 terminal_config=TerminalConfiguration.DIFF)
         case 'single':
             num = int(np.ceil(rate * t))  # number of samples to measure
-            task.ai_channels.add_ai_voltage_chan(c1, min_val=-10.0, max_val=10.0)
+            task.ai_channels.add_ai_voltage_chan(c1, min_val=-10.0, max_val=10.0,
+                                                 terminal_config=TerminalConfiguration.DIFF)
             task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         case _:
             raise ValueError("'dual' or 'single' mode for set_up_daq_task")
