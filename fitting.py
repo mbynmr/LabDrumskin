@@ -41,14 +41,14 @@ def fit_fast(x, y):
 
 
 def fit_width(xy, lx, rx):  # fits a lorentzian to the inputted xy from x bounds lx to rx
-    xs = xy[np.argwhere(xy[:, 0] == lx):(np.argwhere(xy[:, 0] == rx) + 1), 0]
+    xs = xy[int(np.argwhere(xy[:, 0] == lx)[0]):int((np.argwhere(xy[:, 0] == rx)[0]) + 1), 0]
     # TypeError: only integer scalar arrays can be converted to a scalar index
-    ys = xy[np.argwhere(xy[:, 0] == lx):(np.argwhere(xy[:, 0] == rx) + 1), 1]
+    ys = xy[int(np.argwhere(xy[:, 0] == lx)[0]):int((np.argwhere(xy[:, 0] == rx)[0]) + 1), 1]
     try:
         values = curve_fit(f=lorentzian, xdata=xs, ydata=ys, bounds=([0, 50, 0, 0], [1e5, 5e3, 12, 1e5]))[0]
     except RuntimeError:
         return xs, ys
-    return lorentzian(xs, *values)
+    return xs, lorentzian(xs, *values), values
 
 
 def fit(file_name_and_path, copy=True, cutoff=None):
