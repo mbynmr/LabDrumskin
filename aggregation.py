@@ -225,24 +225,14 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
 
             with open("outputs/manual.txt", 'w') as m:
                 m.writelines(f"{-1} {-1}")
-            with open("outputs/peakpicker.txt", 'w') as m:
+            with open("outputs/peakpickerf.txt", 'w') as m:
+                m.writelines(f"{-1} {-1}")
+            with open("outputs/peakpickers.txt", 'w') as m:
                 m.writelines(f"{-1} {-1}")
 
             while np.loadtxt("outputs/manual.txt")[-1] == -1:
                 butt = plt.waitforbuttonpress()  # returns True for key, False for mouse, None if timeout before button press.
-                if not butt:  # if mouse click, file should be updated. read the file manual.txt
-                    data[i, 0] = time_from_filename(file)
-                    data[i, 1] = np.loadtxt("outputs/manual.txt")[0]  # take the first entry (the useful data)
-                    data[i, 2] = 10  # todo error in Hz
-                    data[i, 3] = temp_from_filename(file)
-                    # print(data[i, ...])
-                elif np.loadtxt("outputs/manual.txt")[0] == -3123482:  # 'x' was pressed. quit
-                    print('quitting manual peaks. NOT SAVING data.')  # todo option to save data as well? should be easy
-                    plt.close(fig)
-                    return
-                elif np.loadtxt("outputs/manual.txt")[0] == -912384:  # 'n' was pressed. skip this spectra
-                    print(f'skipping spectra number {i}')
-                elif np.loadtxt("outputs/manual.txt")[0] == -6457893:  # 'f' was pressed. do peak analysis for first
+                if np.loadtxt("outputs/manual.txt")[0] == -6457893:  # 'f' was pressed. do peak analysis for first
                     print(f'doing first peak analysis for spectra number {i}')
                     while np.loadtxt("outputs/manual.txt")[0] != -29818532:  # until 'h' is pressed for happy:
                         ax.set_title(f"picker {int((i - skip) / 2)} of {int((len(files) - skip) / 2)} (rough)."
@@ -254,17 +244,18 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
                             # lefty = xy[np.argwhere(xy == leftx), 1]
                         ax.set_title(f"picker {int((i - skip) / 2)} of {int((len(files) - skip) / 2)} (rough)."
                                      f" temp: {temp_from_filename(file)} - select RIGHT of FIRST peak")
-                        plt.get_current_fig_manager().full_screen_toggle()
+                        # plt.get_current_fig_manager().full_screen_toggle()
                         butt = plt.waitforbuttonpress()
                         if not butt:
                             rightx = np.loadtxt("outputs/manual.txt")[0]
                             # righty = xy[np.argwhere(xy == rightx), 1]
 
-                        fitx, fity = fit_width(xy, leftx, rightx)
+                        fitx, fity, values = fit_width(xy, leftx, rightx)
                         ax.plot(fitx, fity, '-m')
 
                         ax.set_title(f"press 'h' for happy, or anything else to go again.")
                         butt = plt.waitforbuttonpress()
+                    values
                 elif np.loadtxt("outputs/manual.txt")[0] == -4982341:  # 's' was pressed. do peak analysis for second
                     print(f'doing second peak analysis for spectra number {i}')
                     while np.loadtxt("outputs/manual.txt")[0] != -29818532:  # until 'h' is pressed for happy:
@@ -277,17 +268,30 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
                             # lefty = xy[np.argwhere(xy == leftx), 1]
                         ax.set_title(f"picker {int((i - skip) / 2)} of {int((len(files) - skip) / 2)} (rough)."
                                      f" temp: {temp_from_filename(file)} - select RIGHT of SECOND peak")
-                        plt.get_current_fig_manager().full_screen_toggle()
+                        # plt.get_current_fig_manager().full_screen_toggle()
                         butt = plt.waitforbuttonpress()
                         if not butt:
                             rightx = np.loadtxt("outputs/manual.txt")[0]
                             # righty = xy[np.argwhere(xy == rightx), 1]
 
-                        fitx, fity = fit_width(xy, leftx, rightx)
+                        fitx, fity, values = fit_width(xy, leftx, rightx)
                         ax.plot(fitx, fity, '-m')
 
                         ax.set_title(f"press 'h' for happy, or anything else to go again.")
                         butt = plt.waitforbuttonpress()
+                    values
+                if not butt:  # if mouse click, file should be updated. read the file manual.txt
+                    data[i, 0] = time_from_filename(file)
+                    data[i, 1] = np.loadtxt("outputs/manual.txt")[0]  # take the first entry (the useful data)
+                    data[i, 2] = 10  # todo error in Hz
+                    data[i, 3] = temp_from_filename(file)
+                    # print(data[i, ...])
+                elif np.loadtxt("outputs/manual.txt")[0] == -3123482:  # 'x' was pressed. quit
+                    print('quitting manual peaks. NOT SAVING data.')  # todo option to save data as well? should be easy
+                    plt.close(fig)
+                    return
+                elif np.loadtxt("outputs/manual.txt")[0] == -912384:  # 'n' was pressed. skip this spectra
+                    print(f'skipping spectra number {i}')
 
             plt.close(fig)
 
