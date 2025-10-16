@@ -8,7 +8,7 @@ import sys
 from scipy.ndimage import gaussian_filter
 
 from my_tools import resave_auto, time_from_filename, temp_from_filename
-from fitting import fit_agg, fit
+from fitting import fit_agg, fit, fit_width
 
 
 def resave(save_path, name=None):
@@ -203,6 +203,7 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
         while maxy < 1.1 * actual:
             maxy = 1.01 * maxy
         ax.set_ylim([0, maxy])
+        # ax.set_ylim([0, 0.8])
         ax.set_title(f"picker {i - skip} of {len(files) - skip} (roughly)")
         if method == 'B':
             ax.set_title(f"picker {int((i - skip) / 2)} of {int((len(files) - skip) / 2)} (rough)."
@@ -221,8 +222,12 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
             fig.canvas.callbacks.connect('key_press_event', on_skip)
             plt.tight_layout()
             plt.draw()
+
             with open("outputs/manual.txt", 'w') as m:
                 m.writelines(f"{-1} {-1}")
+            with open("outputs/peakpicker.txt", 'w') as m:
+                m.writelines(f"{-1} {-1}")
+
             while np.loadtxt("outputs/manual.txt")[-1] == -1:
                 butt = plt.waitforbuttonpress()  # returns True for key, False for mouse, None if timeout before button press.
                 if not butt:  # if mouse click, file should be updated. read the file manual.txt
@@ -231,12 +236,59 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
                     data[i, 2] = 10  # todo error in Hz
                     data[i, 3] = temp_from_filename(file)
                     # print(data[i, ...])
-                elif np.loadtxt("outputs/manual.txt")[0] == -3123482:
+                elif np.loadtxt("outputs/manual.txt")[0] == -3123482:  # 'x' was pressed. quit
                     print('quitting manual peaks. NOT SAVING data.')  # todo option to save data as well? should be easy
                     plt.close(fig)
                     return
-                elif np.loadtxt("outputs/manual.txt")[0] == -912384:
+                elif np.loadtxt("outputs/manual.txt")[0] == -912384:  # 'n' was pressed. skip this spectra
                     print(f'skipping spectra number {i}')
+                elif np.loadtxt("outputs/manual.txt")[0] == -6457893:  # 'f' was pressed. do peak analysis for first
+                    print(f'doing first peak analysis for spectra number {i}')
+                    while np.loadtxt("outputs/manual.txt")[0] != -29818532:  # until 'h' is pressed for happy:
+                        ax.set_title(f"picker {int((i - skip) / 2)} of {int((len(files) - skip) / 2)} (rough)."
+                                     f" temp: {temp_from_filename(file)} - select LEFT of FIRST peak")
+                        plt.get_current_fig_manager().full_screen_toggle()
+                        butt = plt.waitforbuttonpress()
+                        if not butt:
+                            leftx = np.loadtxt("outputs/manual.txt")[0]
+                            # lefty = xy[np.argwhere(xy == leftx), 1]
+                        ax.set_title(f"picker {int((i - skip) / 2)} of {int((len(files) - skip) / 2)} (rough)."
+                                     f" temp: {temp_from_filename(file)} - select RIGHT of FIRST peak")
+                        plt.get_current_fig_manager().full_screen_toggle()
+                        butt = plt.waitforbuttonpress()
+                        if not butt:
+                            rightx = np.loadtxt("outputs/manual.txt")[0]
+                            # righty = xy[np.argwhere(xy == rightx), 1]
+
+                        fitx, fity = fit_width(xy, leftx, rightx)
+                        ax.plot(fitx, fity, '-m')
+
+                        ax.set_title(f"press 'h' for happy, or anything else to go again.")
+                        butt = plt.waitforbuttonpress()
+                elif np.loadtxt("outputs/manual.txt")[0] == -4982341:  # 's' was pressed. do peak analysis for second
+                    print(f'doing second peak analysis for spectra number {i}')
+                    while np.loadtxt("outputs/manual.txt")[0] != -29818532:  # until 'h' is pressed for happy:
+                        ax.set_title(f"picker {int((i - skip) / 2)} of {int((len(files) - skip) / 2)} (rough)."
+                                     f" temp: {temp_from_filename(file)} - select LEFT of SECOND peak")
+                        plt.get_current_fig_manager().full_screen_toggle()
+                        butt = plt.waitforbuttonpress()
+                        if not butt:
+                            leftx = np.loadtxt("outputs/manual.txt")[0]
+                            # lefty = xy[np.argwhere(xy == leftx), 1]
+                        ax.set_title(f"picker {int((i - skip) / 2)} of {int((len(files) - skip) / 2)} (rough)."
+                                     f" temp: {temp_from_filename(file)} - select RIGHT of SECOND peak")
+                        plt.get_current_fig_manager().full_screen_toggle()
+                        butt = plt.waitforbuttonpress()
+                        if not butt:
+                            rightx = np.loadtxt("outputs/manual.txt")[0]
+                            # righty = xy[np.argwhere(xy == rightx), 1]
+
+                        fitx, fity = fit_width(xy, leftx, rightx)
+                        ax.plot(fitx, fity, '-m')
+
+                        ax.set_title(f"press 'h' for happy, or anything else to go again.")
+                        butt = plt.waitforbuttonpress()
+
             plt.close(fig)
 
     # data = data[np.argwhere(data[:, 2] != 0).flatten(), ...]
@@ -294,12 +346,21 @@ def on_pick(event):
 
 
 def on_skip(event):
-    if event.key == 'x':
+    if event.key == 'x':  # quit spectra analysis
         with open("outputs/manual.txt", 'w') as m:
             m.writelines(f"{-3123482} {-3} {-3}")
-    elif event.key == 'n':
+    elif event.key == 'n':  # skip this spectrum
         with open("outputs/manual.txt", 'w') as m:
             m.writelines(f"{-912384} {-4} {-4}")
+    elif event.key == 'f':  # first peak width fit stuff
+        with open("outputs/manual.txt", 'w') as m:
+            m.writelines(f"{-6457893} {-4} {-4}")
+    elif event.key == 's':  # second peak width fit stuff
+        with open("outputs/manual.txt", 'w') as m:
+            m.writelines(f"{-4982341} {-4} {-4}")
+    elif event.key == 'h':  # happy with peak width fit stuff, move on
+        with open("outputs/manual.txt", 'w') as m:
+            m.writelines(f"{-29818532} {-4} {-4}")
 
 
 def aggregate():

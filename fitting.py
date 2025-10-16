@@ -40,6 +40,17 @@ def fit_fast(x, y):
     return lorentzian(x, *values), values
 
 
+def fit_width(xy, lx, rx):  # fits a lorentzian to the inputted xy from x bounds lx to rx
+    xs = xy[np.argwhere(xy[:, 0] == lx):(np.argwhere(xy[:, 0] == rx) + 1), 0]
+    # TypeError: only integer scalar arrays can be converted to a scalar index
+    ys = xy[np.argwhere(xy[:, 0] == lx):(np.argwhere(xy[:, 0] == rx) + 1), 1]
+    try:
+        values = curve_fit(f=lorentzian, xdata=xs, ydata=ys, bounds=([0, 50, 0, 0], [1e5, 5e3, 12, 1e5]))[0]
+    except RuntimeError:
+        return xs, ys
+    return lorentzian(xs, *values)
+
+
 def fit(file_name_and_path, copy=True, cutoff=None):
     data = np.loadtxt(file_name_and_path)
     data = data[np.argsort(data, axis=0)[:, 0]]  # sort it!
