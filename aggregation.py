@@ -176,6 +176,12 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
     prevfile = None  # for 'B' both S & P method
     skip = 0
     maxy = 5
+
+    with open("outputs/peakpickerf.txt", 'w') as m:
+        m.writelines(f"{-1} {-1}")
+    with open("outputs/peakpickers.txt", 'w') as m:
+        m.writelines(f"{-1} {-1}")
+
     for i, file in tqdm(enumerate(files), total=len(files), file=printer, ncols=42):
         # sample name from the file name
         # 2023_06_22_12_42_26_TP211_PSY2_4_81.12.txt
@@ -204,9 +210,11 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
             maxy = 1.01 * maxy
         ax.set_ylim([0, maxy])
         # ax.set_ylim([0, 0.8])
-        ax.set_title(f"picker {i - skip} of {len(files) - skip} (roughly)")
+        infos = "x:quit, n:next, e:end&save, f:firstpeak, g:secondpeak, h:happy || "
+        ax.set_title(infos + f"picker {i - skip} of {len(files) - skip} (roughly)")
+        # ax.set_xlabel()
         if method == 'B':
-            ax.set_title(f"picker {int((i - skip) / 2)} of {int((len(files) - skip) / 2)} (rough)."
+            ax.set_title(infos + f"picker {int((i - skip) / 2)} of {int((len(files) - skip) / 2)} (rough)."
                          f" temp: {temp_from_filename(file)}")
             if prevfile is not None:  # P & S both 'B' method: plot the line of both (pulse then sweep).
                 xyp = np.loadtxt(spectra_path + "/" + prevfile)
@@ -224,10 +232,6 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
             plt.draw()
 
             with open("outputs/manual.txt", 'w') as m:
-                m.writelines(f"{-1} {-1}")
-            with open("outputs/peakpickerf.txt", 'w') as m:
-                m.writelines(f"{-1} {-1}")
-            with open("outputs/peakpickers.txt", 'w') as m:
                 m.writelines(f"{-1} {-1}")
 
             while np.loadtxt("outputs/manual.txt")[-1] == -1:
@@ -255,8 +259,14 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
 
                         ax.set_title(f"press 'h' for happy, or anything else to go again.")
                         butt = plt.waitforbuttonpress()
-                    values
-                elif np.loadtxt("outputs/manual.txt")[0] == -4982341:  # 's' was pressed. do peak analysis for second
+
+                    with open("outputs/peakpickers.txt", 'a') as m:
+                        # m.writelines((f"{v}" for v in np.array(values).flatten) + f"{leftx} {rightx} {file}")
+                        # todo not working
+                        pass
+                    butt = plt.waitforbuttonpress()
+
+                elif np.loadtxt("outputs/manual.txt")[0] == -4982341:  # 'g' was pressed. do peak analysis for second
                     print(f'doing second peak analysis for spectra number {i}')
                     while np.loadtxt("outputs/manual.txt")[0] != -29818532:  # until 'h' is pressed for happy:
                         ax.set_title(f"picker {int((i - skip) / 2)} of {int((len(files) - skip) / 2)} (rough)."
@@ -279,7 +289,11 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
 
                         ax.set_title(f"press 'h' for happy, or anything else to go again.")
                         butt = plt.waitforbuttonpress()
-                    values
+
+                    with open("outputs/peakpickers.txt", 'a') as m:
+                        m.writelines((f"{v}" for v in np.array(values).flatten) + f"{leftx} {rightx} {file}")  # todo left here
+                    butt = plt.waitforbuttonpress()
+
                 if not butt:  # if mouse click, file should be updated. read the file manual.txt
                     data[i, 0] = time_from_filename(file)
                     data[i, 1] = np.loadtxt("outputs/manual.txt")[0]  # take the first entry (the useful data)
@@ -292,6 +306,9 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
                     return
                 elif np.loadtxt("outputs/manual.txt")[0] == -912384:  # 'n' was pressed. skip this spectra
                     print(f'skipping spectra number {i}')
+                elif np.loadtxt("outputs/manual.txt")[0] == -127384:  # 'e' was pressed. skip to end and save
+                    print(f'skipping all future spectra')
+                    break
 
             plt.close(fig)
 
@@ -356,10 +373,13 @@ def on_skip(event):
     elif event.key == 'n':  # skip this spectrum
         with open("outputs/manual.txt", 'w') as m:
             m.writelines(f"{-912384} {-4} {-4}")
+    elif event.key == 'e':  # skip to end and save
+        with open("outputs/manual.txt", 'w') as m:
+            m.writelines(f"{-127384} {-4} {-4}")
     elif event.key == 'f':  # first peak width fit stuff
         with open("outputs/manual.txt", 'w') as m:
             m.writelines(f"{-6457893} {-4} {-4}")
-    elif event.key == 's':  # second peak width fit stuff
+    elif event.key == 'g':  # second peak width fit stuff
         with open("outputs/manual.txt", 'w') as m:
             m.writelines(f"{-4982341} {-4} {-4}")
     elif event.key == 'h':  # happy with peak width fit stuff, move on
