@@ -9,7 +9,7 @@ from measurement import measure_sweep, measure_pulse_decay, measure_adaptive
 from automation import AutoTemp
 from IO_setup import list_devices, calibrate, grab_temp
 from my_tools import resave_output, round_sig_figs
-from aggregation import manual_peak_auto, scatter3d  # , aggregate, colourplot, manual_peak
+from aggregation import manual_peak_auto, scatter3d, view_raw  # , aggregate, colourplot, manual_peak
 from fitting import fit  # , find_peaks
 from timefrequency import fft_magnitude_and_phase, time_frequency_spectrum2electricboogaloo
 from wireplot import wireplot_manager
@@ -34,6 +34,7 @@ class Main:
         self.repeats = tk.IntVar(self.w, value=1)
         self.counter = tk.IntVar(self.w, value=-1)
         self.fit = tk.BooleanVar(self.w, value=True)
+        self.raw = tk.BooleanVar(self.w, value=False)
         self.temptrack = tk.BooleanVar(self.w, value=True)
         self.pause = tk.BooleanVar(self.w, value=False)
         self.sample_name = tk.StringVar(self.w, value='PTM')
@@ -105,6 +106,8 @@ class Main:
         tk.Radiobutton(self.w, text='Adapt', variable=self.method, value='A').place(relx=0.25, rely=0.1)
         tk.Radiobutton(self.w, text='Pulse', variable=self.method, value='P').place(relx=0.25, rely=0.15)
         tk.Radiobutton(self.w, text='P & S', variable=self.method, value='B').place(relx=0.25, rely=0.2)
+        tk.Checkbutton(self.w, text="save all raw?", variable=self.raw).place(relx=0.35, rely=0.25)
+        tk.Button(self.w, text='view raw', command=self.view_raw).place(relx=0.51, rely=0.25)
         tk.Label(self.w, text="Actuation Style").place(relx=0.225, rely=0.01)
 
         # method options for multiple/single
@@ -217,9 +220,15 @@ class Main:
                                  tolerance=self.freqstep.get(), start_guess=600, deltainit=1e2,
                                  bounds=[self.boundL.get(), self.boundU.get()])
             case 'S':
-                measure_sweep(freq=[self.boundL.get(), self.boundU.get()], freqstep=self.freqstep.get(),
-                              t=self.t.get(), vpp=self.vpp.get(),
-                              devchan=self.dev_signal.get() + '/' + self.chan_signal.get(), GUI=self)
+                if not self.raw.get():
+                    measure_sweep(freq=[self.boundL.get(), self.boundU.get()], freqstep=self.freqstep.get(),
+                                  t=self.t.get(), vpp=self.vpp.get(),
+                                  devchan=self.dev_signal.get() + '/' + self.chan_signal.get(), GUI=self)
+                else:
+                    measure_sweep(freq=[self.boundL.get(), self.boundU.get()], freqstep=self.freqstep.get(),
+                                  t=self.t.get(), vpp=self.vpp.get(),
+                                  devchan=self.dev_signal.get() + '/' + self.chan_signal.get(), GUI=self,
+                                  save_path=self.save_path.get(), temp=self.temp.get(), sample=self.sample_name.get())
         # save output and fit after finishing single run
         if self.temptrack.get():
             self.temp.set(
@@ -246,6 +255,10 @@ class Main:
                 method = method + str(int(self.runs.get()))
         resave_output(method=method, save_path=self.save_path.get(), temperature=self.temp.get(),
                       sample=self.sample_name.get(), copy=False)
+
+    def view_raw(self):
+        view_raw(save_path=self.save_path.get(), sample=self.sample_name.get(),
+                 freq=[self.boundL.get(), self.boundU.get()], GUI=self)
 
     def manual_peak(self):
         manual_peak_auto(save_path=self.save_path.get(), cutoff=[self.boundL.get(), self.boundU.get()],
