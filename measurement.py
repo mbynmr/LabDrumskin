@@ -12,7 +12,8 @@ from fitting import fit_fast
 from IO_setup import set_up_signal_generator_sine, set_up_signal_generator_pulse
 
 
-def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=10, devchan="Dev1/ai0", GUI=None):
+def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=10, devchan="Dev1/ai0", GUI=None,
+                  save_path=None, temp=None, sample=None):
     """
     Measures a film by exciting a series of frequencies using sine waves then measuring the response.
     freq=[minf, maxf] is the minimim and maximum frequencies to sweep between
@@ -59,6 +60,9 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=10, devchan=
     with ni.Task() as task:
         task.ai_channels.add_ai_voltage_chan(devchan, min_val=-10.0, max_val=10.0)
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
+        if save_path is not None:
+            task.ai_channels.add_ai_voltage_chan("Dev2/ai2", min_val=-10.0, max_val=10.0)
+            task.timing.cfg_samp_clk_timing(rate=rate / 2, samps_per_chan=num)
         # print(chan.ai_rng_high)
 
         with open(f"outputs/output.txt", 'w') as out:
@@ -79,13 +83,28 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=10, devchan=
 
                 # read the microphone data after a short pause
                 time.sleep(0.1)
-                signal = task.read(num)
+                signal = task.read(num)  # todo this is now twice as big?
 
                 # save raw
-                raw = np.zeros([len(signal), 2])
-                raw[:, 0] = np.linspace(0, t, num=len(signal))
-                raw[:, 1] = signal
-                np.savetxt("outputs/raw.txt", raw, fmt='%.4g')
+                if save_path is None:
+                    raw = np.zeros([len(signal), 2])
+                    raw[:, 0] = np.linspace(0, t, num=len(signal))
+                    raw[:, 1] = signal
+                    np.savetxt("outputs/raw.txt", raw, fmt='%.4g')
+                else:
+                    raw = np.zeros([len(signal[0]), 3])
+                    raw[:, 0] = np.linspace(0, t, num=len(signal[0]))
+                    raw[:, 1] = signal[0]
+                    raw[:, 2] = signal[1]
+                    # print(save_path + f"/raw/{sample}_S__{f}_{i}_{temp}.txt")
+                    np.savetxt(save_path + f"/raw/{sample}_S__{f}_{i}_{temp:.2g}.txt", raw, fmt='%.4g')
+                    # save_all_raw(raw, f, 'S', save_path, temp, sample)
+
+                # todo
+                #  measure from 1 daq card the mic response and sine wave into piezo, line up timings and save together.
+                #  plot timed lines together and have a cheeky looksy
+                #  plot driving amplitude vs poincare section for bifurcation
+                # todo measure some more thicknesses on elip
 
                 # process and write to file
                 data = np.sqrt(np.mean(np.square(signal)))  # calculate RMS of signal
@@ -98,8 +117,9 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=10, devchan=
                 # smaller to plot
                 # line_current.set_ydata(signal)
                 indexes_for_speedy_plot = [np.sort(np.random.choice(len(signal), int(0.1 * len(signal))))]
-                line_current.set_ydata(np.array(signal)[indexes_for_speedy_plot])
-                line_current.set_xdata(np.array(times)[indexes_for_speedy_plot])
+                if save_path is not None:
+                    line_current.set_ydata(np.array(signal)[indexes_for_speedy_plot])
+                    line_current.set_xdata(np.array(times)[indexes_for_speedy_plot])
 
                 if i > 0:
                     indexes = data_list.nonzero()
@@ -277,6 +297,12 @@ def measure_adaptive(devchan="Dev2/ai0", vpp=5, tolerance=5, start_guess=1e3, de
     m.close()
     print(f"{res.x[0] = }")
     copy2clip(f"{res.x[0]:.6g}")
+
+
+def save_all_raw(raw, method, save_path, temperature, sample):
+    # todo automate amplitude changing. last thing to automate
+    # method=method, save_path=self.save_path.get(), temperature=self.temp.get(), sample=self.sample_name.get()
+    np.savetxt(save_path + f"/{sample}_{method}_{temperature}.txt", raw, fmt='%.4g')
 
 
 class Measure:
