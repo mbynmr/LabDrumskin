@@ -6,6 +6,7 @@ import os
 from tqdm import tqdm
 import sys
 from scipy.ndimage import gaussian_filter
+import time
 
 from my_tools import resave_auto, time_from_filename, temp_from_filename
 from fitting import fit_agg, fit, fit_width
@@ -261,7 +262,7 @@ def manual_peak_auto(save_path, cutoff, method, sample=None, printer=None):
                         butt = plt.waitforbuttonpress()
 
                     with open("outputs/peakpickers.txt", 'a') as m:
-                        # m.writelines((f"{v}" for v in np.array(values).flatten) + f"{leftx} {rightx} {file}")
+                        m.writelines((f"{v}" for v in np.array(values).flatten) + f"{leftx} {rightx} {file}")
                         # todo not working
                         pass
                     butt = plt.waitforbuttonpress()
@@ -492,6 +493,94 @@ def aggregate_old(a_or_s):
         if key != 'temps':
             data[i - 1, :] = dic[key]
     np.savetxt("outputs/data.txt", data, fmt='%.6g')
+
+
+def view_raw(save_path, sample, freq, GUI=None):
+    # todo freq bounds
+    if GUI is None:
+        printer = sys.stderr
+    else:
+        printer = GUI.Writer
+
+    if "/raw" not in save_path and r"\raw" not in save_path:
+        save_path = save_path + "/raw"
+
+    print(f'viewing raw of sample {sample}')
+    print(f'in {save_path}')
+    print(f'between {freq[0]} and {freq[1]}')
+
+    plt.ion()
+    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(16, 8))
+    ax_poincare, ax_current = axs
+    ax_current.set_ylabel("Amplitude")
+    ax_current.set_xlabel("time / s")
+    ax_current.set_title(f"Run number: {-1:.6g}")
+    ax_poincare.set_ylabel("Poincare")
+    ax_poincare.set_xlabel("Frequency")
+    ax_poincare.set_title(f" ")
+    plt.tight_layout()
+
+    # example line on the current plot
+    # line_current, = ax_current.plot(range(100), np.zeros_like(range(100)), label="Raw Data")
+
+    files = os.listdir(save_path)
+    files.sort()
+    # indexes = []
+    # for i in range(len(files)):
+    #     f = files[i]
+    #     try:
+    #         if f[4] != '_' or f[7] != '_' or f[10] != '_' or f[13] != '_' or f[16] != '_':
+    #             print(f'removing {f} at {i}')
+    #             indexes.append(i)
+    #     except IndexError:
+    #         print(f'removing {f} at {i}')
+    #         indexes.append(i)
+    # data = np.zeros([len(files), 4])
+    # for i in sorted(indexes, reverse=True):
+    #     files.pop(i)
+
+    skip = 0
+    line_current_sine = ax_current.plot(range(100), range(100))[0]
+    line_current = ax_current.plot(range(100), range(100))[0]
+    line_poincare = ax_poincare.plot(range(100), range(100))[0]
+
+    for i, file in tqdm(enumerate(files), total=len(files), ncols=52, file=printer):
+        # col0 time
+        # col1 signal
+        # col2 sine
+        # PSY25w4_1_S__2193.0_193_23.txt
+        sample_name = file.split('__')[0][:-2]
+        if sample_name != sample:
+            skip += 1
+            continue
+        ax_current.set_title(f"viewing {i - skip} of {len(files) - skip} (roughly)")
+
+        saved_data = np.loadtxt(save_path + "/" + file)
+
+        times = saved_data[:, 0]
+        signal = saved_data[:, 1]
+        sine = saved_data[:, 2]
+        if len(times) > 1000:
+            times = times[:100]
+            signal = signal[:100]
+            sine = sine[:100]
+
+        # update visual plot of data
+        if len(times) != len(line_current_sine.get_ydata()):  # todo if not 100 for now
+            quit()
+        ax_current.set_xlim([times[0], times[-1]])
+        ax_current.set_ylim((-12, 12))
+        # ax_poincare.set_xlim(ax_lims([min_freq, max_freq]))
+        line_current_sine.set_xdata(times)
+        line_current_sine.set_ydata(sine)
+        line_current.set_xdata(times)
+        line_current.set_ydata(signal)
+        # line_poincare.set_ydata(data)
+        fig.canvas.draw()
+        fig.canvas.flush_events()
+        time.sleep(0.01)
+
+    # fig.close()  # auto-close or no?
 
 
 def colourplot():
