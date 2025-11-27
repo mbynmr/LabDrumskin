@@ -61,7 +61,7 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=10, devchan=
         task.ai_channels.add_ai_voltage_chan(devchan, min_val=-10.0, max_val=10.0)
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         if save_path is not None:
-            task.ai_channels.add_ai_voltage_chan("Dev2/ai2", min_val=-10.0, max_val=10.0)
+            task.ai_channels.add_ai_voltage_chan("Dev1/ai7", min_val=-10.0, max_val=10.0)
             task.timing.cfg_samp_clk_timing(rate=rate / 2, samps_per_chan=num)
         # print(chan.ai_rng_high)
 

@@ -56,6 +56,7 @@ class Main:
         self.chan_signal = tk.StringVar(self.w, value='ai1')  # alternate cell is ai0
         self.dev_temp = tk.StringVar(self.w, value='Dev2')
         self.chan_temp = tk.StringVar(self.w, value='ai1')
+        # sig gen feedback is dev1ai7
 
         # widgets before mainloop
         self.entry_path = tk.Entry(self.w, textvariable=self.save_path, width=68)
