@@ -52,8 +52,8 @@ class Main:
         self.tempstep = tk.DoubleVar(self.w, value=2.5)
         self.temp = tk.DoubleVar(self.w, value=20)
         self.vpp = tk.DoubleVar(self.w, value=10)
-        self.dev_signal = tk.StringVar(self.w, value='Dev2')
-        self.chan_signal = tk.StringVar(self.w, value='ai0')
+        self.dev_signal = tk.StringVar(self.w, value='Dev1')
+        self.chan_signal = tk.StringVar(self.w, value='ai1')  # alternate cell is ai0
         self.dev_temp = tk.StringVar(self.w, value='Dev2')
         self.chan_temp = tk.StringVar(self.w, value='ai1')
 
