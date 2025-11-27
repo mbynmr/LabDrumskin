@@ -49,7 +49,8 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=10, devchan=
     ax_current.set_xlim([0, t])
     plt.tight_layout()
 
-    rate = 20000
+    # rate = 20000  # old card
+    rate = 250000  # new card is 250,000
     num = int(rate * t)
     times = np.arange(num) / rate
     line_current, = ax_current.plot(times, np.zeros_like(times))
@@ -62,7 +63,7 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=10, devchan=
         task.timing.cfg_samp_clk_timing(rate=rate, samps_per_chan=num)
         if save_path is not None:
             task.ai_channels.add_ai_voltage_chan("Dev1/ai7", min_val=-10.0, max_val=10.0)
-            task.timing.cfg_samp_clk_timing(rate=rate / 2, samps_per_chan=num)
+            task.timing.cfg_samp_clk_timing(rate=rate / 2, samps_per_chan=num)  # change rate oops
         # print(chan.ai_rng_high)
 
         with open(f"outputs/output.txt", 'w') as out:
@@ -183,7 +184,8 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None)
     # setting up data collection variables
     runs = int(runs)
     sleep_time = 0.135
-    rate = 20000  # 20e3
+    # rate = 20000  # 20e3 old card
+    rate = 250000  # 250e3 new card
     num = int(np.ceil(rate * t))  # number of samples to measure
     times = np.arange(start=0, stop=t, step=(1 / rate))
     line_current, = ax_current.plot(times, np.zeros_like(times), label="Raw Data")
