@@ -108,7 +108,7 @@ def fit(file_name_and_path, copy=True, cutoff=None):
     plt.ylabel("Response RMS / V")
     plt.ylim([0, plt.ylim()[1]])
     if plt.xlim()[1] >= 10000:  # new daq card
-        plt.xlim([plt.xlim()[0], 9000])
+        plt.xlim([0, 9000])
     plt.tight_layout()
     plt.show()
 
