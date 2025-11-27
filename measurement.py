@@ -187,7 +187,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None)
     # rate = 20000  # 20e3 old card
     rate = 250000  # 250e3 new card
     num = int(np.ceil(rate * t))  # number of samples to measure
-    times = np.arange(start=0, stop=t, step=(1 / rate))
+    times = np.arange(start=(1 / rate), stop=t, step=(1 / rate))
     line_current, = ax_current.plot(times, np.zeros_like(times), label="Raw Data")
 
     # setting up frequency variables
@@ -204,6 +204,7 @@ def measure_pulse_decay(devchan="Dev1/ai0", runs=100, delay=20, t=0.2, GUI=None)
     ax_current.plot([t / 3, t / 3], [-12, 12], 'k:', label="_Time Boundary")
     ax_all.set_xlim(ax_lims([min_freq, max_freq]))
     ax_current.set_xlim([times[0], times[-1]])
+    ax_current.set_xlim([times[0], 9000])  # new DAQ card means i don't wanna c longer than this rly
     ax_current.set_ylim((-12, 12))
     plt.tight_layout()
 
@@ -304,7 +305,11 @@ def measure_adaptive(devchan="Dev2/ai0", vpp=5, tolerance=5, start_guess=1e3, de
 def save_all_raw(raw, method, save_path, temperature, sample):
     # todo automate amplitude changing. last thing to automate
     # method=method, save_path=self.save_path.get(), temperature=self.temp.get(), sample=self.sample_name.get()
-    np.savetxt(save_path + f"/{sample}_{method}_{temperature}.txt", raw, fmt='%.4g')
+    # np.savetxt(save_path + f"/{sample}_{method}_{temperature}.txt", raw, fmt='%.4g')
+    np.savez_compressed(save_path + f"/{sample}_{method}_{temperature}.npz", data_array=raw)
+
+    # loaded_data = np.load(save_path + f"/{sample}_{method}_{temperature}.npz")
+    # loaded_array = loaded_data['data_array']
 
 
 class Measure:
