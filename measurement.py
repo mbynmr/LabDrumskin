@@ -98,7 +98,7 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=10, devchan=
                     raw[:, 1] = signal[0]
                     raw[:, 2] = signal[1]
                     # print(save_path + f"/raw/{sample}_S__{f}_{i}_{temp}.txt")
-                    np.savetxt(save_path + f"/raw/{sample}_S__{f}_{i}_{temp:.2g}.txt", raw, fmt='%.4g')
+                    np.savetxt(save_path + f"/raw/{sample}_S{vpp}V__{f}_{i}_{temp:.2g}.txt", raw, fmt='%.4g')
                     # save_all_raw(raw, f, 'S', save_path, temp, sample)
 
                 # todo
