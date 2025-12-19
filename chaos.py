@@ -26,13 +26,22 @@ def get_from_file(file=None, num=None):
         arr = np.loadtxt(filename)[:, :]
     else:
         arr = np.loadtxt(filename)[:int(num), :]
-    dt = arr[0, 0]
+
+    dt = arr[1, 0] - arr[0, 0]
+    if dt == 0:
+        dt = 1 / 250000
     arr = arr[int(len(arr) / 2):, :]
-    t = arr[:, 0]
+    t = np.arange(len(arr[:, 0])) * dt
     x = arr[:, 1]
     F = arr[:, 2]
+    #'C:\\Users\\mbynmr\\OneDrive - The University of Nottingham\\Documents\\Shared - Mechanical Vibrations of Ultrathin Films\\Lab\\data\\PSY\\Shapes\\Semicircle\\raw\\PSY25sc_5_S10.0__6450.0_0_44.txt'
+    # t is 0.1, 0.1, 0.1, 0.1, till 12th which is 0.1001, increments every 20ish
 
-    fd = float(filename.split(r'\raw')[1].split('__')[1].split('_')[0])
+    try:
+        filename = filename.split(r'\raw')[1]
+    except IndexError:
+        pass
+    fd = float(filename.split('__')[1].split('_')[0])
     # print(fd)  # 6472
     return t, F, x, fd, dt
 
@@ -40,10 +49,6 @@ def get_from_file(file=None, num=None):
 def embed_ts(x, m, tau):
     N = len(x) - (m - 1) * tau
     return np.column_stack([x[i:i + N] for i in range(0, m * tau, tau)])
-
-
-def reconstruct_phasespace_trajectory(x, tau, m):
-    return embed_ts(x, m, tau)
 
 
 def autocorr(x):
@@ -71,7 +76,7 @@ def estimate_delay(ac):
 
 def plotting_poincare():
     # yoink from file
-    t, F, x, fd, dt = get_from_file()  # int(1e4)
+    t, F, x, fd, dt = get_from_file(num=int(1e5))  # int(1e4)
 
     ac = autocorr(x)
     tau = estimate_delay(ac)
@@ -82,7 +87,7 @@ def plotting_poincare():
     # highly noisy or complex signals: m = 15–30
     # mechanical vibration / displacement time series: m = 8–12 (common range)
 
-    X = reconstruct_phasespace_trajectory(x, tau, m)
+    X = embed_ts(x, m, tau)
 
     # lle = nd.lyap_r(x, emb_dim=m, tau=tau, min_tsep=10)
     # print(lle)
@@ -263,7 +268,18 @@ def plotting_bifurc():
     files = os.listdir(spectra_path)
     files.sort()
 
-    fig, ax = plt.subplots()
+    mode = 'bifurc'
+    mode = 'individual'
+    mode = 'fourier'
+    removers = None
+    # removers = 'frequency'
+    removers = 'amplitude'
+    only_this_amplitude = 10
+    only_this_frequency = 6460
+
+    if mode == 'birufc':
+        fig, ax = plt.subplots()
+
     for i, file in tqdm(enumerate(files), total=len(files)):
         if file.split(".")[-1] != "txt":  # check it's a data file and not a folder or something else
             continue  # not a data file
@@ -272,10 +288,13 @@ def plotting_bifurc():
             continue  # didn't note amplitude. recoverable later by looking at driving force amplitude data!
 
         ad = float(file.split('__')[0].split('_')[-1][1:])  # driving amplitude
-        if ad != 10:
+        if ad != only_this_amplitude and removers == 'amplitude':
             continue  # ignore other amplitudes for now
         # time, driving force, sample, driving frequency, sampling rate
-        t, F, x, fd, dt = get_from_file(spectra_path + '\\' + file, num=int(1e3))
+        # t, F, x, fd, dt = get_from_file(spectra_path + '\\' + file, num=int(1e3))
+        t, F, x, fd, dt = get_from_file(spectra_path + '\\' + file)
+        if fd != only_this_frequency and removers == 'frequency':
+            continue  # ignore other driving frequencies for now
 
         peaks, _ = find_peaks(F)
         # t_true_peaks = np.array([refine_peak_time(t, F, i) for i in peaks])
@@ -286,17 +305,36 @@ def plotting_bifurc():
         sample_at_peaks = interpx(t_true_peaks)
         sine_at_peaks = interpF(t_true_peaks)
 
-        # # plot it each cycle
-        # fig, ax = plt.subplots()
-        # ax.plot(t, F, label='driving force sampled')
-        # ax.plot(t, x, label='data sampled')
-        # ax.plot(t_true_peaks, sine_at_peaks, 'o', label='driving force peaks interpolated')
-        # ax.plot(t_true_peaks, sample_at_peaks, 'o', label='sample peaks interpolated')
-        # plt.legend()
-        # plt.show()
-        ax.plot(np.ones_like(sample_at_peaks) * fd, sample_at_peaks, '.')
+        # plot it each cycle
+        if mode == 'bifurc':
+            ax.plot(np.ones_like(sample_at_peaks) * ad, sample_at_peaks, '.')
+            ax.plot(np.ones_like(sample_at_peaks) * fd, sample_at_peaks, '.')
+        else:
+            fig, ax = plt.subplots()
+            if mode == 'individual':
+                ax.plot(t, F, label='driving force sampled')
+                ax.plot(t, x, label='data sampled')
+                ax.plot(t_true_peaks, sine_at_peaks, 'o', label='driving force peaks interpolated')
+                ax.plot(t_true_peaks, sample_at_peaks, 'o', label='sample peaks interpolated')
+            if mode == 'fourier':
+                tlen = t[-1] - t[0]
+                rate = (1 / dt)
+                min_freq = 1 / tlen
+                max_freq = rate / 2  # = (num / 2) / t  # aka Nyquist frequency
+                num = np.ceil(rate * tlen)  # number of samples to measure
+                freqs = np.linspace(start=min_freq, stop=max_freq, num=int(num / 2), endpoint=True)
+                ax.plot(freqs, np.abs(np.fft.fft(F - np.mean(F)) ** 2)[1:int(num / 2) + 1], label='driving')
+                ax.plot(freqs, np.abs(np.fft.fft(x - np.mean(x)) ** 2)[1:int(num / 2) + 1], label='response')
+                # fourier transform compare normal (large amplitude) to weird ones (small amplitude),
+                # see if there's presense of a low frequency
+            plt.legend()
+            plt.show()
 
-    # print('done')
-    plt.xlabel('frequency / Hz')
-    plt.ylabel('amplitude at +10V peak driving / V')
-    plt.show()
+    print('done')
+    if mode == 'bifurc':
+        plt.xlabel('frequency / Hz')
+        plt.ylabel(f'amplitude at {ad}V peak driving / V')
+        plt.xlabel('amplitude / V')
+        plt.ylabel(f'amplitude at {fd}Hz driving / V')
+        plt.show()
+
