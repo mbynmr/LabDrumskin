@@ -308,6 +308,9 @@ class AutoTemp:
         # np.savetxt(self.save_folder_path + "/" + fname, np.loadtxt(f"outputs/autotemp.txt"))
         resave(self.save_folder_path, name=fname)
 
+    def auto_raw(self):
+        x = 1
+
     def auto_temp_pulse(self, delay=20, time_between=30, runs=100, **kwargs):
         bounds = self.bounds
         cutoff = np.divide(bounds, 10e3)

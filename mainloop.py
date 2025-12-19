@@ -189,6 +189,12 @@ class Main:
                       dev_temp=self.dev_temp.get() + '/' + self.chan_temp.get(),
                       sample_name=self.sample_name.get(), bounds=[self.boundL.get(), self.boundU.get()],
                       t=self.t.get())
+        if self.raw.get():  # raw
+            at.auto_raw(repeats=self.repeats.get(), runs=self.runs.get(), freqstep=self.freqstep.get())
+            at.close()
+            notify_finish()
+            self.w.after(1, self.update, False)
+            return  # don't do others if we've done raw
         match self.method.get():
             case 'P':
                 # at.auto_temp_pulse(delay=10, temp_step=self.tempstep.get(),

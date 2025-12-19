@@ -311,6 +311,7 @@ def plotting_bifurc():
             ax.plot(np.ones_like(sample_at_peaks) * fd, sample_at_peaks, '.')
         else:
             fig, ax = plt.subplots()
+            plt.title(f"{fd}Hz {ad}V")
             if mode == 'individual':
                 ax.plot(t, F, label='driving force sampled')
                 ax.plot(t, x, label='data sampled')
@@ -327,13 +328,15 @@ def plotting_bifurc():
                 ax.plot(freqs, np.abs(np.fft.fft(x - np.mean(x)) ** 2)[1:int(num / 2) + 1], label='response')
                 # fourier transform compare normal (large amplitude) to weird ones (small amplitude),
                 # see if there's presense of a low frequency
+                plt.xlim([0, 10e3])
+                plt.ylim([0, 40e3])
             plt.legend()
             plt.show()
 
     print('done')
     if mode == 'bifurc':
-        plt.xlabel('frequency / Hz')
-        plt.ylabel(f'amplitude at {ad}V peak driving / V')
+        # plt.xlabel('frequency / Hz')
+        # plt.ylabel(f'amplitude at {ad}V peak driving / V')
         plt.xlabel('amplitude / V')
         plt.ylabel(f'amplitude at {fd}Hz driving / V')
         plt.show()

@@ -84,7 +84,7 @@ def measure_sweep(freq=None, freqstep=5, t=2, suppressed=False, vpp=10, devchan=
 
                 # read the microphone data after a short pause
                 time.sleep(0.1)
-                signal = task.read(num)  # todo this is now twice as big?
+                signal = task.read(num)
 
                 # save raw
                 if save_path is None:
